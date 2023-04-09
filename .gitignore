@@ -7,6 +7,9 @@ __pycache__/
 casadi-3.6.0-osx64-matlab2018b
 casadi-3.6.0-windows64-matlab2018b
 
+# Matlab autosave
+*.asv
+
 # C extensions
 *.so
 
