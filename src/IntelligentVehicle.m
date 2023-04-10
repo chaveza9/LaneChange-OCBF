@@ -63,8 +63,10 @@ classdef IntelligentVehicle < handle
         ocp_prob = []
         cbf_prob = []
         % Terminal Time for Maneuver
+        t_0 = 0;
         t_f = NaN;
         x_f = NaN;
+        x_0 = NaN;
         % Desired Speed
         DesSpeed = 33;
         % Collaboration vehicles id
@@ -109,7 +111,7 @@ classdef IntelligentVehicle < handle
             self.CurrentState = InitialConditions;
             initStates = self.decompose_state(self.CurrentState);
             self.Dynamics = VehicleDynamics(initStates,...
-                'dt',self.SampleTime, 'currTime', self.CurrentTime);
+                'dt',self.SampleTime, 't_k', self.CurrentTime);
             % Select mesh depending on class ID
             if Options.VehicleClass == 2
                 carMesh = driving.scenario.truckMesh;
@@ -204,6 +206,10 @@ classdef IntelligentVehicle < handle
             % Update vehicle state
             self.DesSpeed = v_des;
             self.RollType = cavType;
+            self.t_f = tf;
+            self.x_f = xf;
+            self.x_0 = x_0_ego;
+            self.t_0 = self.CurrentTime;
             if hasDefinedCavRoll
                 self.IsCollaborating = hasDefinedCavRoll;
                 self.DrivingBehaviour = 'collaborating';
@@ -214,45 +220,91 @@ classdef IntelligentVehicle < handle
             self.Rear_cav_id = r_collab_id;
         end % define_cav_roll
         
-        
-
         function isRunning = step(self)
             % Performs an update step and increases time step by one.
             % Additionally, it updates vehicle position on DSD scenario and
             % behaves according to current behaviour type
             % -------------------------------------------------------------
-            if self.CurrentTime <= self.StopTime
-                % Find behaviour
-                isDone = false;
-                switch self.DrivingBehaviour
-                    case 'collaborating'
-                        % Collaborating State
-                        [states, isDone]= self.Dynamics.update();
-                        if isDone
-                            % Set Has arrived variable to true
-                            self.HasArrived = true;
-                        end
-                    otherwise % selfless
-                        % Apply current Speed
-                        states = self.Dynamics.update_state();
-                end
-                % update states
-                self.CurrentState = self.construct_state_structure(states);
-                % update Vehicle on DSD
-                self.update_dsd_vehicle_states();
-                % Update Time Step
-                self.CurrentTime = self.CurrentTime + self.SampleTime;
-                % update state for output
-                if ~isDone
-                    isRunning = true;
-                else
-                    isRunning = false;
-                end
-            else
+            % ----------- Check if Sim is still running -------------------
+            if self.CurrentTime > self.StopTime
                 isRunning = false;
                 warning('Simulation has reached defined final time')
+                return
             end
-
+            % ----------- Vehicle is not collaborating --------------------
+            if strcmp(self.DrivingBehaviour,'selfish') 
+                % Apply constant control input
+                x_k = self.Dynamics.integrate_forward();
+                self.CurrentState = self.construct_state_structure(x_k);
+                isRunning = true;
+                return
+            end
+            % ----------- Vehicle is collaborating ------------------------
+            % Create initial conditions vector
+            x_k_ego = self.contruct_integrator_states(self.CurrentState);
+            % Extract leader's state (if it exists)
+            [self.Leader, self.IsLeader] = self.find_leader();
+            if self.IsLeader
+                x_k_lead = x_k_ego;
+                x_k_lead(1) = x_k_lead(1) + 1000;
+            else
+                posU = leader.Position(1);
+                velU = norm(self.Leader.Velocity(1:2));
+                x_k_lead = [posU, velU]';
+            end
+            % Compute u_reference function based on current state
+            [~, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
+                x_k_ego, self.CurrentTime);
+            % Compute remaining time from terminal time
+            t_des = max(self.t_f - (self.CurrentTime - self.t_0), 1);
+            x_des = self.x_f;
+            % Compute CBF control input based on reference signal    
+            switch self.RollType
+                % CAV 1 is only safe with respect to vehicle in front
+                case 'cav1'
+                    collab = 0;
+                    phi = 0;
+                    x_k_adj = x_k_ego*0;
+                    [status, u_k] = self.cbf_prob(collab, ...
+                        x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
+                        phi, t_des, x_des);
+                % CAV 1 is safe with respect to Leader vehicle (cav 1 and
+                % cav C terminal position
+                case 'cav2'
+                    collab = 1;
+                    phi = self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
+                    % Extract cav c (adj_vehicle)
+                    x_k_adj = self.contruct_integrator_states(...
+                            self.extract_states_from_id(self.CAVC_ID));
+                    [status, u_k] = self.cbf_prob(collab, ...
+                        x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
+                        phi, t_des, x_des);
+                % CAV C is safe with respect to Leader vehicle (veh U) and
+                % CAV 1
+                case 'cavC'
+                    collab = 1;
+                    phi = self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
+                    % Extract cav c (adj_vehicle)
+                    x_k_adj = self.contruct_integrator_states(...
+                            self.extract_states_from_id(self.CAV1_ID));
+                    [status, u_k] = self.cbf_prob(collab, ...
+                        x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
+                        phi, t_des, x_des);
+                otherwise
+                    error('case not defined')
+            end
+            if ~status
+                error('solution could not be found')
+            end
+            % -------------- Apply control input ------------------------
+            % Apply constant control input
+            x_k = self.Dynamics.integrate_forward(u_k);
+            self.CurrentState = self.construct_state_structure(x_k);
+            % update Vehicle on DSD
+            self.update_dsd_vehicle_states();
+            isRunning = true;
+            % Update Time Step
+            self.CurrentTime = self.CurrentTime + self.SampleTime;
         end %step
 
 
@@ -303,9 +355,9 @@ classdef IntelligentVehicle < handle
         function update_actor_states(self)
             % Updates the vehicle states on cuboid world and extracts
             % states from vehicle dynamics
-            self.CurrentState = self.construct_state_structure(self.Dynamics.currVehState);
+            self.CurrentState = self.construct_state_structure(self.Dynamics.x_k);
             % Update States
-            self.Vehicle.Position(1:2) = self.CurrentState.Position';
+            self.Vehicle.Position(1:2) = self.CurrentState.Position;
             self.Vehicle.Velocity(1) = self.CurrentState.Velocity;
             self.Vehicle.Yaw = self.CurrentState.Heading*180/pi;
       end     
@@ -369,9 +421,52 @@ classdef IntelligentVehicle < handle
         end
         function state_struct = construct_state_structure(states)
             state_struct = struct('Position',states(1:2),...
-                'Velocity',states(3:4),...
-                'Heading',states(5));
+                'Velocity',states(3),...
+                'Heading',states(4));
+        end
+        function phi = delta_fun (x_curr, x_des, x_0,tau)
+            phi = tau*(x_curr-x_0)/(x_des-x_0);
         end
     end
 end
+
+
+        % function isRunning = step(self)
+        %     % Performs an update step and increases time step by one.
+        %     % Additionally, it updates vehicle position on DSD scenario and
+        %     % behaves according to current behaviour type
+        %     % -------------------------------------------------------------
+        %     if self.CurrentTime <= self.StopTime
+        %         % Find behaviour
+        %         isDone = false;
+        %         switch self.DrivingBehaviour
+        %             case 'collaborating'
+        %                 % Collaborating State
+        %                 [states, isDone]= self.Dynamics.update();
+        %                 if isDone
+        %                     % Set Has arrived variable to true
+        %                     self.HasArrived = true;
+        %                 end
+        %             otherwise % selfless
+        %                 % Apply current Speed
+        %                 states = self.Dynamics.update_state();
+        %         end
+        %         % update states
+        %         self.CurrentState = self.construct_state_structure(states);
+        %         % update Vehicle on DSD
+        %         self.update_dsd_vehicle_states();
+        %         % Update Time Step
+        %         self.CurrentTime = self.CurrentTime + self.SampleTime;
+        %         % update state for output
+        %         if ~isDone
+        %             isRunning = true;
+        %         else
+        %             isRunning = false;
+        %         end
+        %     else
+        %         isRunning = false;
+        %         warning('Simulation has reached defined final time')
+        %     end
+        % 
+        % end %step
 

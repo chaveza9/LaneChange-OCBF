@@ -35,7 +35,9 @@ classdef OCBF < matlab.System
                 self.x_p, self.t_f_p, self.v_des_p, self.x_des_p] = ...
                 self.define_cbf_qp(); 
         end
-        function [status, u] = step(self, collaborative, x_k, x_front_k, x_adj_k, u_ref, v_des, phi, t_f, x_f)
+        function [status, u] = step(self,...
+                collaborative, x_k, x_front_k, x_adj_k, u_ref, v_des, ...
+                phi, t_f, x_f)
             status= false;
             if collaborative
                 % Solve problem with borth obstacles

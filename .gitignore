@@ -9,6 +9,7 @@ casadi-3.6.0-windows64-matlab2018b
 
 # Matlab autosave
 *.asv
+*.MATLABDriveTag
 
 # C extensions
 *.so
