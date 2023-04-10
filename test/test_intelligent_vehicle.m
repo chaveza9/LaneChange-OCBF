@@ -31,4 +31,5 @@ x_f = 20;
 % Create a driving scenario
 scenario = Env.ds4vehicleScenario(params);
 
-% Create min
+% Create Vehicle
+cav = IntelligentVehicle(VehID, scenario, x_0_c, StopTime, constraints); 

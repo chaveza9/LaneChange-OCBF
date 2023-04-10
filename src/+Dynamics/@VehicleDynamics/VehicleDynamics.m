@@ -5,10 +5,6 @@ classdef VehicleDynamics < matlab.System
         x_0 (4,1) double {mustBeReal, mustBeFinite}  %[PosX PosY, Speed, theta] [m m m/s rad]
         %current state %[PosX PosY, Speed, theta] [m m m/s rad]
         x_k  (4,1) double {mustBeReal, mustBeFinite} 
-        % Time step
-        dt (1,1) double {mustBeReal, mustBeFinite} = 0.01
-        % Current time
-        t_k(1,1) double {mustBeReal, mustBeFinite} = 0
     end
    
     % Constant properties 
@@ -18,14 +14,18 @@ classdef VehicleDynamics < matlab.System
         vehWidth (1,1) double {mustBeReal, mustBeFinite} = 1.7
         vehWheelBase (1,1) double {mustBeReal, mustBeFinite} = 5
         speedRange (1,2) double {mustBeReal, mustBeFinite} = [-20 40]
+        % Time step
+        dt (1,1) double {mustBeReal, mustBeFinite} = 0.01
+        % Current time
+        t_k(1,1) double {mustBeReal, mustBeFinite} = 0
         
     end
     % provate properties
     properties(SetAccess = 'protected', GetAccess = 'public')
         % State history
-        x_hist (:,5) double {mustBeReal, mustBeFinite} = []; %[PosX PosY, Speed, theta] [sec m m m/s m/s, rad, rad]
-        u_hist (:,2) double {mustBeReal, mustBeFinite} = []; %[acc, omega] [sec m/s^2 rad/s]
-        t_hist (:,1) double {mustBeReal, mustBeFinite} = []; %[time] [sec]
+        x_hist (4,:) double {mustBeReal, mustBeFinite} = []; %[PosX PosY, Speed, theta] [sec m m m/s m/s, rad, rad]
+        u_hist (2,:) double {mustBeReal, mustBeFinite} = []; %[acc, omega] [sec m/s^2 rad/s]
+        t_hist (1,:) double {mustBeReal, mustBeFinite} = []; %[time] [sec]
     end
     
     methods

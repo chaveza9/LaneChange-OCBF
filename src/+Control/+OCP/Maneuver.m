@@ -148,13 +148,6 @@
         end
     end
     methods(Abstract, Access = 'public')
-        % Computation of longitudinal solution 
-        [flag, terminalTime, posHist, speedHist, accelHist, energy] = ...
-                compute_longitudinal_solution(self, terminalTime, ...
-                VehCTerminalState, frontVehicleStates, display, estimate)  
-    end
-
-    methods(Abstract, Access= 'protected')
         % Defines a parametric model of optimal control problem
         [opti, X, U, X_obs_0, tf, v_des] = define_problem(self)
     end

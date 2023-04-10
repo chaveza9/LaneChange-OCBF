@@ -10,7 +10,7 @@ classdef CollabAccel < Control.OCP.Maneuver
         function self = CollabAccel(varargin)
             % initialize Vehicle superclass
             self = self@Control.OCP.Maneuver();
-            setProperties(self,nargin-3,varargin{:});
+            setProperties(self,nargin,varargin{:});
             % Define Parametric Model of the problem
             [self.problem, self.x_var, self.u_var, self.x_obs_par, ...
                 self.tf_par, self.v_des_par] = self.define_problem();
@@ -32,7 +32,7 @@ classdef CollabAccel < Control.OCP.Maneuver
             v_max = self.velMax;   % Vehicle i max velocity
             %% Define Cost gains for convex combination
             gamma_energy = (self.alpha_energy)/max([u_max, u_min].^2);
-            gamma_speed = (1-self.alpha_energy-alpha_hdv)/max([v_max-v_des, v_min-v_des].^2);
+            gamma_speed = (1-self.alpha_energy)/max([v_max-v_des, v_min-v_des].^2);
            
             % Define decision variables
             X = opti.variable(2,self.N+1); % state trajectory
@@ -40,7 +40,7 @@ classdef CollabAccel < Control.OCP.Maneuver
             speed = X(2,:);
             U = opti.variable(1,self.N);   % control trajectory (throttle)
             % Front Obstacle Vehicle
-            X_obs_0 = opti.parameter(); % Obstacle Vehicle Initial Conditions
+            X_obs_0 = opti.parameter(2,1); % Obstacle Vehicle Initial Conditions
             % Terminal Time Parametric Variable
             tf_p = opti.parameter(); % Vehicle terminal time
             % Define dynamic constraints
@@ -60,7 +60,7 @@ classdef CollabAccel < Control.OCP.Maneuver
                 % Impose multi-shoot constraint
                 opti.subject_to(X(:,k+1)==X_next); % close the gaps
                 % Impose Front Vehicle Safety Constraint
-                x_obs_k = X_obs_0+v_obs_0*dt*k;
+                x_obs_k = X_obs_0(1)+X_obs_0(2)*dt*k;
                 opti.subject_to(x_obs_k - pos(k+1)>=...
                     speed(k+1)*self.tau+self.delta_dist); % safety constraint
             end
