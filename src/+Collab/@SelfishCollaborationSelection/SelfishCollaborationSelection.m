@@ -1,4 +1,4 @@
-classdef SelfishCollaborationSelection < CAV.CollaborationSelection
+classdef SelfishCollaborationSelection < Collab.CollaborationSelection
     %UNTITLED3 Summary of this class goes here
     %   Detailed explanation goes here
 
@@ -6,7 +6,7 @@ classdef SelfishCollaborationSelection < CAV.CollaborationSelection
         function obj = SelfishCollaborationSelection(cavC, vehicleU, ...
                 cavCandidates, varargin)
             % Initialize parent class
-            obj = obj@CAV.CollaborationSelection(cavC, vehicleU, cavCandidates);
+            obj = obj@Collab.CollaborationSelection(cavC, vehicleU, cavCandidates);
             if nargin > 3
                 setProperties(obj,nargin-3,varargin{:});
             end
