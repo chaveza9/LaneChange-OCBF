@@ -110,7 +110,7 @@ classdef IntelligentVehicle < handle
             % _________Initialize Vehicle Model ________________
             self.CurrentState = InitialConditions;
             initStates = self.decompose_state(self.CurrentState);
-            self.Dynamics = VehicleDynamics(initStates,...
+            self.Dynamics = Dynamics.VehicleDynamics(initStates,...
                 'dt',self.SampleTime, 't_k', self.CurrentTime);
             % Select mesh depending on class ID
             if Options.VehicleClass == 2

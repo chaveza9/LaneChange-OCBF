@@ -1,4 +1,4 @@
-function [opti, tf, x_C, v_C, x_f, v_f, B] = define_termial_conditions (self, x_C_0, v_C_0, x_0, v_0, x_U_0, v_U_0)
+function [tf, x_C, v_C, x_f, v_f, B] = define_terminal_conditions (self, x_C_0, v_C_0, x_0, v_0, x_U_0, v_U_0)
        % ------------------------------------
        % x_0 = initial conditions [numVehicles,1]
        % v_0 = initial conditions [numVehicles,1]
@@ -37,10 +37,7 @@ function [opti, tf, x_C, v_C, x_f, v_f, B] = define_termial_conditions (self, x_
         B = opti.variable(numCandidates, 1); % binary variables
         discrete = [zeros(numCandidates*2+1,1);ones(numCandidates,1)];
         
-%         % Define dynamics
-%         f = @(v,u) [v;u]; %dx/dt = f(v,u)
-%         dt = tf/N;
-       
+
         % cost (disruption)
         cost = alpha_t*tf+gammax*(x_C-x_C_0-v_C_0*tf)^2+gammav*(v_C-v_d)^2;
         for k=1:length(numCandidates)
@@ -75,6 +72,17 @@ function [opti, tf, x_C, v_C, x_f, v_f, B] = define_termial_conditions (self, x_
         opti.subject_to(v_min<=v(length(numCandidates),1)<=v_max);
 
         opti.subject_to(x_C-x_U_0-v_U_0*tf>=phi*v_C+delta);
+        % Define optimizer settings
+          solver_options = struct('print_time', 1, 'discrete',discrete);
+          opti.solver('bonmin',solver_options);
+          sol = opti.solve();
+    
+          tf = sol.value(tf_var);
+          x_C = sol.value(x_C_var);
+          v_C = sol.value(v_C_var);
+          x_f = sol.value(x_f_var);
+          v_f = sol.value(v_f_var);
+          B = sol.value(B_var);
      
 end
 
@@ -86,27 +94,3 @@ function [p_u_i,p_l_i] = reachable_set_p(self,x_i,x_i_0,v_i,v_i_0,t)
         p_l_i = 0.5*t^2 - 0.25*((-v_i+v_i_0+nu*t)/mu+t)^2-(x_i-x_i_0-t*v_i_0-nu*0.5*t^2)/mu;
 end
 
-function [tf,x_C,v_C,x_f,v_f,B] = solve_minlp (opti, tf_var, x_C_var, v_C_var, x_f_var, v_f_var, B_var)
-      arguments
-          opti
-          tf_var
-          x_C_var
-          v_C_var
-          x_f_var
-          v_f_var
-          B_var
-      end
-
-      % Define optimizer settings
-      solver_options = struct('print_time', 1, 'discrete',discrete);
-      opti.solver('bonmin',solver_options);
-      sol = opti.solve();
-
-      tf = sol.value(tf_var);
-      x_C = sol.value(x_C_var);
-      v_C = sol.value(v_C_var);
-      x_f = sol.value(x_f_var);
-      v_f = sol.value(v_f_var);
-      B = sol.value(B_var);
-
-end
