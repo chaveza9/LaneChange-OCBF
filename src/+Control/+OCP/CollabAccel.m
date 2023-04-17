@@ -44,8 +44,7 @@ classdef CollabAccel < Control.OCP.Maneuver
             % Terminal Time Parametric Variable
             tf_p = opti.parameter(); % Vehicle terminal time
             % Define dynamic constraints
-            c_u = @(u, x) u^2; % Cost Acceleration
-            c_v = @(u, x) u;
+            c = @(u, x) u^2; % Cost Acceleration
             f = @(x,u) [x(2);u]; % dx/dt = f(x,u)
             % Define objective funciton integrator
             % Integrate using RK4
@@ -55,8 +54,8 @@ classdef CollabAccel < Control.OCP.Maneuver
             for k=1:self.N % loop over control intervals
                 % Forward integration
                 X_next = self.runge_kutta4(f, X(:,k), U(:,k), dt);
-                cost = cost + 0.5*gamma_energy*self.runge_kutta4(c_u, U(:,k), X(:,k), dt);
-                cost = cost + gamma_speed*self.runge_kutta4(c_v,(speed(:,k)-v_des)^2,X(:,k),dt);
+                cost = cost + 0.5*gamma_energy*self.runge_kutta4(c, U(:,k), X(:,k), dt);
+                cost = cost + 0.5*gamma_speed*self.runge_kutta4(c,(speed(:,k)-v_des),X(:,k),dt);
                 % Impose multi-shoot constraint
                 opti.subject_to(X(:,k+1)==X_next); % close the gaps
                 % Impose Front Vehicle Safety Constraint
@@ -76,7 +75,7 @@ classdef CollabAccel < Control.OCP.Maneuver
             % opti.subject_to(pos(end) == pos_f)
             % Warm Start solver
             % opti.set_initial(speed, 20);
-            opti.set_initial(U, 2); 
+            
         end
     end
 end

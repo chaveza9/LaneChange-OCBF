@@ -2,10 +2,10 @@
     % Defines a object that computes a longitudinal and lateral maneuver
     % for a lane-changing maneuver
     properties(SetAccess = 'public', GetAccess = 'public')
-        accelMax (1,1) double {mustBeReal, mustBeFinite} = 3.3;    % Vehicle i max acceleration
-        accelMin (1,1) double {mustBeReal, mustBeFinite} = -7;   % Vehicle i min acceleration
-        velMin (1,1) double {mustBeReal, mustBeFinite} = 13;    % Road min velocity
-        velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;   % Road max velocity 
+        accelMax (1,1) double {mustBeReal, mustBeFinite} = 3.3;     % Vehicle i max acceleration
+        accelMin (1,1) double {mustBeReal, mustBeFinite} = -7;      % Vehicle i min acceleration
+        velMin (1,1) double {mustBeReal, mustBeFinite} = 13;        % Road min velocity
+        velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;       % Road max velocity 
     end
     properties (Access = public)
         % CAV Type
@@ -14,8 +14,7 @@
         tau = 1.2                % Reaction time [s]
         delta_dist = 4.2         % Min Safety distance [m]
         delta_tol = 3            % Tolerance Delta speed 
-        alpha_energy = 0.4       % Energy Cost gain
-        alpha_time = 0.1         % Time Cost gain
+        alpha_energy = 0.1       % Energy Cost gain
         Verbose = false          % print solution iteration        
     end
 
@@ -103,7 +102,40 @@
             % Extract X(tk)
             posX = y(end,1);
             speed = y(end,2);
-        end          
+        end    
+        % 
+        % function [status, u, x] = solve_ocp_formulation(self,...
+        %         curr_state, x_obs_0, xf, tf, v_des)
+        %     % Define Initial Condition
+        %     opti.subject_to(x_var(:,0) == curr_state)
+        %     % Define Terminal Condition
+        %     pos = x_var(1,:);
+        %     opti.subject_to(pos(end) == xf)
+        %     % Populate Parameters
+        %     opti.set_value(X_obst_var, x_obs_0)
+        %     opti.set_value(tf_var, tf)
+        %     opti.set_value(v_des_var, v_des)
+        %     opti.set_initial(u_var, 3.3); 
+        %     % Define optimizer settings
+        %     opti.solver('ipopt',struct('print_time',1,'ipopt',...
+        %     struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',3,...
+        %     'acceptable_obj_change_tol',1e-6))); % set numerical backend
+        %     % Create solver and solve!
+        %     try
+        %         solution = opti.solve();
+        %     catch
+        %         status = false;
+        %         x = NaN;
+        %         u = NaN;
+        %         warning('infeasible problem detected')
+        %         return
+        %     end
+        %     % Populate return values
+        %     status = solution.stats.success;
+        %     x = solution.value(x_var);
+        %     u = solution.value(u_var);   
+        % 
+        % end
     end
     
     methods(Access=protected, Static)
@@ -119,16 +151,18 @@
                 opti, x_var, u_var, X_obst_var, tf_var, v_des_var,...
                 curr_state, x_obs_0, xf, tf, v_des)
             % Define Initial Condition
-            opti.subject_to(x_var(0) == curr_state)
+            opti.subject_to(x_var(:,1) == curr_state)
             % Define Terminal Condition
-            opti.subject_to(x_var(1,end) == xf)
+            pos = x_var(1,:);
+            opti.subject_to(pos(end) == xf)
             % Populate Parameters
             opti.set_value(X_obst_var, x_obs_0)
             opti.set_value(tf_var, tf)
             opti.set_value(v_des_var, v_des)
+            opti.set_initial(u_var, 3.3); 
             % Define optimizer settings
-            opti.solver('ipopt',struct('print_time',0,'ipopt',...
-            struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',1,...
+            opti.solver('ipopt',struct('print_time',1,'ipopt',...
+            struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',3,...
             'acceptable_obj_change_tol',1e-6))); % set numerical backend
             % Create solver and solve!
             try

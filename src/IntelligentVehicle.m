@@ -21,8 +21,8 @@ classdef IntelligentVehicle < handle
         VelMin
             
         % Rear Safety Distance
-        MinSafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 10;
-        ReactionTime (1,:) double {mustBeNumeric, mustBePositive}= 1.2;
+        MinSafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 7;
+        ReactionTime (1,:) double {mustBeNumeric, mustBePositive}= 0.9;
 
         % Simulation Metadata
         % Simulation sample time

@@ -16,20 +16,26 @@ constraints.u_min = -7;      % Vehicle i min acceleration
 constraints.v_min = 10;      % Vehicle i min velocity
 constraints.v_max = 35;      % Vehicle i max velocity
 % Initial Conditions
-x_0_c.Position = [10, 0]';
-x_0_c.Velocity = 10;
+% Vehicle C
+x_0_c.Position = [0, 0]';
+x_0_c.Velocity = 24;
 x_0_c.Heading = 0;
+
 
 VehID = '1';
 
 % Maneuver 
 StopTime = 10;
-t_f = 10;
+tf = 1.7126*1;
 v_des = 30;
-x_f = 20;
+x_f = 45.9415;
 
 % Create a driving scenario
 scenario = Env.ds4vehicleScenario(params);
 
 % Create Vehicle
 cav = IntelligentVehicle(VehID, scenario, x_0_c, StopTime, constraints); 
+% Compute Analytical OCP 
+hasDefinedRoll = cav.define_cav_roll("cav1", tf, x_f, v_des);
+
+[tf,x_C_f,v_C_f,posStates,speedStates,accTraj,cost] = solve_v_des(0,24,1000,17,250,tf, x_f);

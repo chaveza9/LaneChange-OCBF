@@ -13,7 +13,7 @@ alpha_energy = 0.2;
 beta_time = alpha_time;
 beta_speed = (1-alpha_time-alpha_energy);%/max([v_max-DesSpeed, v_min-DesSpeed].^2);
 beta_energy = (alpha_energy)/max([u_max, u_min].^2);
-ReactionTime = 0.6;
+ReactionTime = 0.9;
 SafetyDistance = 1.5;
 
 %%  Numerical Solution
