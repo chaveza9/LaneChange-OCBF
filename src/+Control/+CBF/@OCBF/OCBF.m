@@ -16,16 +16,16 @@ classdef OCBF < matlab.System
         n_states = 2; %[pos, vel] [m, m/s]
     end
 
-    properties(SetAccess = 'protected', GetAccess = 'protected')
-        % Numerical Solution
-        prob = [];
-        u_var=[]; 
-        z_var=[]; 
-        x_p=[]; 
-        t_f_p=[]; 
-        v_des_p=[]; 
-        x_des_p=[];
-    end
+    % properties(SetAccess = 'protected', GetAccess = 'protected')
+    %     % Numerical Solution
+    %     prob = [];
+    %     u_var=[]; 
+    %     z_var=[]; 
+    %     x_p=[]; 
+    %     t_f_p=[]; 
+    %     v_des_p=[]; 
+    %     x_des_p=[];
+    % end
     
     methods
         function self = OCBF(varargin)
@@ -39,25 +39,24 @@ classdef OCBF < matlab.System
     end
     methods(Access=protected)
         function [status, u] = stepImpl(self,...
-                collaborative, x_k, x_front_k, x_adj_k, u_ref, v_des, ...
-                phi, t_f, x_f)
+                collaborative, x_ego_k, x_front_k, x_adj_k, u_ref, v_des, ...
+                phi, t_f, x_des)
             status= false;
             if collaborative
                 % Solve problem with borth obstacles
-                [status, u] = self.solve_fxtm_cbf_2(self.prob.copy(),  ...
-                    self.u_var, self.z_var, self.x_p, self.t_f_p, self.v_des_p,...
-                    self.x_des_p, x_k, x_front_k, u_ref, t_f, v_des, x_f, x_adj_k, phi);
+                [status, u] = self.solve_fxtm_cbf_2(x_ego_k, x_front_k, ...
+                    u_ref, t_f, v_des, x_des, x_adj_k, phi);
             end
             if ~status
-                    [status, u] = self.solve_fxtm_cbf_1(self.prob.copy(),  ...
-                    self.u_var, self.z_var, self.x_p, self.t_f_p, self.v_des_p,...
-                    x_k, x_front_k, u_ref, t_f, v_des, x_f);
+                [status, u] = self.solve_fxtm_cbf_1(...
+                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
             end
             if ~status
                 error('Solution is Unfeasible')
             end
         end
- 
+        
+        % Implemented outside
         [status, u] = solve_fxtm_cbf_1(self, ...
             x_ego, x_front, u_ref, t_f, v_des, x_des)
         [status, u] = solve_fxtm_cbf_2(self, ...
