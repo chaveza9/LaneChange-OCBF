@@ -16,13 +16,16 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions (x_C_
        % Constraints
         u_max = 3.3;    % Vehicle i max acceleration [m/s^2]
         u_min = -3;   % Vehicle i min acceleration [m/s^2]
-        v_min = 5;   % Vehicle i min velocity [m/s]
+        v_min = 10;   % Vehicle i min velocity [m/s]
         v_max = 35;   % Vehicle i max velocity [m/s]
         T_max = 20;     % maximum allowable time
-        t_avg = 5;      % Average time
+        t_avg = 10;      % Average time
         % Tunning Constants
         gamma_t = 1/T_max;
         gamma = 0.5;
+        % Alpha cost
+        alpha_t = 1;
+        alpha_dis = 1;
         % Safety Parameters
         phi = 0.9;   % reaction time 
         delta = 15;  % Minimum safety distance
@@ -46,23 +49,23 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions (x_C_
         
         %% Define cost
         % Time cost
-        cost = gamma_t*tf_var;
+        cost_time = gamma_t*tf_var;
         % Disruption cost
         % CAV C
         [gamma_x, gamma_v] = compute_disruption_norm_cons(...
             gamma, v_max, v_min, v_C_0, v_d, t_avg);
         % gamma_x = 0.5; gamma_v = 0.5;
-        cost = cost + compute_disruption(gamma_x, gamma_v,...
+        cost_dis = compute_disruption(gamma_x, gamma_v,...
             x_C_0, v_C_0, x_ego_var, v_ego_var, tf_var);
         % CAVs
         for k=1:numCandidates
             [gamma_x, gamma_v] = compute_disruption_norm_cons(...
                 gamma, v_max, v_min, v_0(k,1), v_d, t_avg);
             % gamma_x = 0.5; gamma_v = 0.5;
-            cost = cost + compute_disruption(gamma_x, gamma_v,...
+            cost_dis = cost_dis + compute_disruption(gamma_x, gamma_v,...
                 x_0(k,1), v_0(k,1), x_var(k,1), v_var(k,1), tf_var);
         end
-        opti.minimize(cost);
+        opti.minimize(cost_time + cost_dis);
         
         %% Define Safety Conditions
         for i=1:numCandidates-1
@@ -106,7 +109,8 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions (x_C_
         opti.subject_to(x_ego_var>=x_C_0)
 
         % Define optimizer settings
-        solver_options = struct('print_time', 1, 'discrete',discrete);
+        solver_options = struct('print_time', 1, 'discrete',discrete, 'verbose_init', 1);
+
         opti.solver('bonmin',solver_options);
         try
             sol = opti.solve();
@@ -127,7 +131,7 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions (x_C_
             B = zeros(size(x_0));
             i_m = 0;
         end
-        
+        opti.delete
      
 end
 

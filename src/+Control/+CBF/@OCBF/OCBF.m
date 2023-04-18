@@ -7,6 +7,7 @@ classdef OCBF < matlab.System
         velMin (1,1) double {mustBeReal, mustBeFinite} = 13;    % Road min velocity
         velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;   % Road max velocity 
         tau = 1.2;
+        dt = 0.1;
         delta_dist = 10;
         % Tunning Parameters
         mu_clf = 5;

@@ -53,8 +53,6 @@ classdef IntelligentVehicle < handle
         IsLeader logical {mustBeNumericOrLogical} = true;
         % Has arrived to destination lane
         HasArrived logical {mustBeNumericOrLogical} = false;
-        CAVC_ID;
-        CAV1_ID;
         IntersectTime = [];
     end
 
@@ -89,6 +87,7 @@ classdef IntelligentVehicle < handle
                 Options.SampleTime double {mustBeNonnegative, mustBeNumeric} = 0.01;
                 Options.VehicleType (1,:) char {mustBeMember(Options.VehicleType,{'NonControlled','CAV'})} = 'NonControlled'
                 Options.SafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 10;
+                Options.ReactionTime (1,:) double {mustBeNumeric, mustBePositive}= 0.9;
                 Options.VehicleClass (1,:) {mustBeInteger} = 1; % 1= car. 2=truck
                 Options.VehicleLength (1,:) double {mustBeNumeric, mustBePositive}= 4.7; %[m]
                 Options.VehicleRearOverhang (1,:) double {mustBeNumeric, mustBePositive}= 1; %[m]
@@ -107,6 +106,7 @@ classdef IntelligentVehicle < handle
             self.StopTime = StopTime;
             self.VehicleType = Options.VehicleType;
             self.MinSafetyDistance = Options.SafetyDistance;
+            self.ReactionTime = Options.ReactionTime;
             % _________Initialize Vehicle Model ________________
             self.CurrentState = InitialConditions;
             initStates = self.decompose_state(self.CurrentState);
@@ -148,19 +148,21 @@ classdef IntelligentVehicle < handle
                 'velMax', self.VelMax, ...
                 'velMin', self.VelMin,...
                 'tau', self.ReactionTime,...
-                'delta_dist', self.MinSafetyDistance);
+                'delta_dist', self.MinSafetyDistance,...
+                'dt', self.SampleTime);
             self.cbf_prob = Control.CBF.OCBF(...
                 'accelMax', self.AccelMax, ...
                 'accelMin', self.AccelMin, ...
                 'velMax', self.VelMax, ...
                 'velMin', self.VelMin,...
                 'tau', self.ReactionTime,...
-                'delta_dist', self.MinSafetyDistance);
+                'delta_dist', self.MinSafetyDistance,...
+                'dt', self.SampleTime);
         end %constructor
 
         
         function hasDefinedCavRoll = define_cav_roll (...
-                self, cavType, tf, xf, v_des, e_collab_id,f_collab_id, r_collab_id)
+                self, cavType, tf, xf, v_des, option)
             % Defines the maneuver roll of the vehicle. This can be of type
             %  {'Acceleration','Deceleration','Social','Selfish', 
             % 'SelfishRelaxed'})}. For this purpose a desired speed
@@ -175,12 +177,15 @@ classdef IntelligentVehicle < handle
                 tf
                 xf
                 v_des = 33;      
-                e_collab_id = NaN;
-                f_collab_id = NaN;
-                r_collab_id = NaN;
+                option.e_collab_id = NaN;
+                option.f_collab_id = NaN;
+                option.r_collab_id = NaN;
             end
             % Sanity Check to make sure that ids have been stablished
             % properly
+            e_collab_id = option.e_collab_id;
+            f_collab_id = option.f_collab_id;
+            r_collab_id = option.r_collab_id;
             if strcmp(cavType, 'cav2') && isnan(e_collab_id)
                 error('need to define a proper id for CAV C')
             elseif strcmp(cavType, 'cavC') && (isnan(r_collab_id)||isnan(f_collab_id))
@@ -195,7 +200,7 @@ classdef IntelligentVehicle < handle
                 x_obst_leader = x_0_ego;
                 x_obst_leader(1) = x_obst_leader(1) + 1000;
             else
-                posU = leader.Position(1);
+                posU = self.Leader.Position(1);
                 velU = norm(self.Leader.Velocity(1:2));
                 x_obst_leader = [posU, velU]';
             end
@@ -248,7 +253,7 @@ classdef IntelligentVehicle < handle
                 x_k_lead = x_k_ego;
                 x_k_lead(1) = x_k_lead(1) + 1000;
             else
-                posU = leader.Position(1);
+                posU = self.Leader.Position(1);
                 velU = norm(self.Leader.Velocity(1:2));
                 x_k_lead = [posU, velU]';
             end
@@ -275,7 +280,7 @@ classdef IntelligentVehicle < handle
                     phi = self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
-                            self.extract_states_from_id(self.CAVC_ID));
+                            self.extract_states_from_id(self.Ego_cav_id));
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
                         phi, t_des, x_des);
@@ -286,7 +291,7 @@ classdef IntelligentVehicle < handle
                     phi = self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
-                            self.extract_states_from_id(self.CAV1_ID));
+                            self.extract_states_from_id(self.Front_cav_id));
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
                         phi, t_des, x_des);
@@ -382,14 +387,13 @@ classdef IntelligentVehicle < handle
     methods (Access = private)
 
         function states = extract_states_from_id(self, id)
-            allPoses = actorPoses(self.Scenario);
-            veh_index = find([allPoses.ActorID]== id);
-            states.Position = allPoses(veh_index).Position(1:2)';
-            states.Velocity = norm(allPoses(veh_index).Velocity(1:2));
-            states.Heading = allPoses(veh_index).Yaw*pi/180;
+            actors = self.Scenario.Actors;
+            veh_index = find([actors.Name]== id);
+            states.Position = actors(veh_index).Position(1:2)';
+            states.Velocity = norm(actors(veh_index).Velocity(1:2));
+            states.Heading = actors(veh_index).Yaw*pi/180;
            
         end
-
        function hasBeenUpdated = update_dsd_vehicle_states(obj)
             %Updates states on dsd scenario by retrieving states from SUMO
             %and then forcing output on DSD scenario

@@ -11,6 +11,7 @@
         % CAV Type
         cavType (1,:) char {mustBeMember(cavType,{'cav1','cav2', 'cavC','none'})} ='none'
         N = 250;
+        dt = 0.1;
         tau = 1.2                % Reaction time [s]
         delta_dist = 4.2         % Min Safety distance [m]
         delta_tol = 3            % Tolerance Delta speed 
@@ -44,7 +45,7 @@
         end
 
         function [status, u_hist, x_hist, t_hist] = ...
-                compute_ocp(self, currState, tf, xf, v_des, x_obst_front)
+                compute_ocp(self, currState, tf, xf, v_des, x_obst_front, verbose)
             arguments
                 self
                 currState (2,1) double {mustBeReal, mustBeFinite}
@@ -52,7 +53,7 @@
                 xf (1,1) double {mustBeReal, mustBeFinite}
                 v_des (1,1) double {mustBeReal, mustBeFinite}
                 x_obst_front (2,1) double {mustBeReal, mustBeFinite} = [NaN, NaN]
-                
+                verbose = false;
             end
             % Deal with no obstacle in front
             if any(isnan(x_obst_front))
@@ -63,7 +64,7 @@
             [status, u_hist, x_hist] = self.solve_ocp(...
                 self.problem.copy, self.x_var, self.u_var, ...
                 self.x_obs_par, self.tf_par, self.v_des_par,...
-                currState, x_obst_front, xf, tf, v_des);
+                currState, x_obst_front, xf, tf, v_des, verbose);
             % Define time history
             t_hist = linspace(0, tf, size(x_hist,2));
             self.u_opt = u_hist;
@@ -95,8 +96,8 @@
             %% Declare model variables
             % Model equations
             xdot = @(t,x,u)[x(2);u];
-            tk_1 = self.currTime;
-            tk = self.currTime+self.dt;
+            tk_1 = time;
+            tk = tk_1+self.dt;
             tspan = [tk_1 ,tk];
             [~,y] = ode45(@(t,y)xdot(t,y,accel),tspan,[x_0; v_0]);
             % Extract X(tk)
@@ -149,24 +150,27 @@
         end
         function [status, u, x] = solve_ocp(...
                 opti, x_var, u_var, X_obst_var, tf_var, v_des_var,...
-                curr_state, x_obs_0, xf, tf, v_des)
+                curr_state, x_obs_0, xf, tf, v_des, verbose)
             % Define Initial Condition
             opti.subject_to(x_var(:,1) == curr_state)
             % Define Terminal Condition
             pos = x_var(1,:);
+            speed = x_var(2,:);
             opti.subject_to(pos(end) == xf)
+            % opti.subject_to(speed(end) == v_des_var)
             % Populate Parameters
             opti.set_value(X_obst_var, x_obs_0)
             opti.set_value(tf_var, tf)
             opti.set_value(v_des_var, v_des)
             opti.set_initial(u_var, 3.3); 
             % Define optimizer settings
-            opti.solver('ipopt',struct('print_time',1,'ipopt',...
-            struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',3,...
+            opti.solver('ipopt',struct('print_time',verbose,'ipopt',...
+            struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',0,...
             'acceptable_obj_change_tol',1e-6))); % set numerical backend
             % Create solver and solve!
             try
-                solution = opti.solve();
+                % solution = opti.solve();
+                solution = opti.solve_limited();
             catch
                 status = false;
                 x = NaN;

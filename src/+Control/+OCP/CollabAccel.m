@@ -58,10 +58,10 @@ classdef CollabAccel < Control.OCP.Maneuver
                 cost = cost + 0.5*gamma_speed*self.runge_kutta4(c,(speed(:,k)-v_des),X(:,k),dt);
                 % Impose multi-shoot constraint
                 opti.subject_to(X(:,k+1)==X_next); % close the gaps
-                % Impose Front Vehicle Safety Constraint
-                x_obs_k = X_obs_0(1)+X_obs_0(2)*dt*k;
-                opti.subject_to(x_obs_k - pos(k+1)>=...
-                    speed(k+1)*self.tau+self.delta_dist); % safety constraint
+                % % Impose Front Vehicle Safety Constraint
+                % x_obs_k = X_obs_0(1)+X_obs_0(2)*dt*k;
+                % opti.subject_to(x_obs_k - pos(k+1)>=...
+                %     speed(k+1)*self.tau+self.delta_dist); % safety constraint
             end
             % ----- Objective function ---------
             opti.minimize(cost);

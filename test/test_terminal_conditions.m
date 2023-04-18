@@ -2,45 +2,57 @@ clc
 clear
 close all
 
-if ismac
-    addpath('/Users/annili/Desktop/PhD/casadi-osx-matlabR2015a-v3.5.5/')
-else
-    addpath('G:\My Drive\Mixed Traffic\casadi-windows-matlabR2016a-v3.5.5')
-end
-
 import casadi.*
 
-%% Settings
+%% Environmental Setting
+% Simulation setting
+StopTime = 10;
+dt = 0.01;
+% CAV set
+num_vehicles = 5; % number of vehicles in fast lane
+v_des_range = [25,30];
+min_pos = 0;
+% Maneuver constraints
+v_des = 30; %m/s
+reactionTime = 0.9;
+minSafeDistance = 15;
+% Vehicle constraints
+constraints.u_max = 3.3;     % Vehicle i max acceleration
+constraints.u_min = -3;      % Vehicle i min acceleration
+constraints.v_max = 35;      % Vehicle i max velocity
+constraints.v_min = 10;      % Vehicle i min velocity
+%% Initial Conditions
 % Preallocate vehicle array
 X_0 = zeros(5,2);
+states.Position = [0,0]';
+states.Velocity = 0;
+states.Heading = 0;
+states_cav = repelem(states, num_vehicles);
 % Vehicle U initial States;
-v_U_0 = 20;
-x_U_0 = 100;
+states_u = states;
+states_u.Position(1) = 100;
+states_u.Velocity = 20;
 % Vehicle C States;
-v_C_0 = 24;
-x_C_0 = 30;
+states_c = states;
+states_c.Position(1) = 30;
+states_c.Velocity = 24;
 % Vehicle 1 States;
-v_1_0 = 28;
-x_1_0 = 115;
-X_0(1,:) = [x_1_0, v_1_0];
+states_cav(1).Position(1) = 115;
+states_cav(1).Velocity = 28;
 % Vehicle 2 States;
-v_2_0 = 28;
-x_2_0 = 85;
-X_0(2,:) = [x_2_0, v_2_0];
+states_cav(2).Position(1) = 85;
+states_cav(2).Velocity = 28;
 % Vehicle 3 States;
-v_3_0 = 24;
-x_3_0 = 60;
-X_0(3,:) = [x_3_0, v_3_0];
+states_cav(3).Position(1) = 60;
+states_cav(3).Velocity = 24;
 % Vehicle 4 States;
-v_4_0 = 24;
-x_4_0 = 25;
-X_0(4,:) = [x_4_0, v_4_0];
+states_cav(4).Position(1) = 25;
+states_cav(4).Velocity = 24;
 % Vehicle 5 States;
-v_5_0 = 24;
-x_5_0 = 0;
-X_0(5,:) = [x_5_0, v_5_0];
-
+states_cav(5).Position(1) = 0;
+states_cav(5).Velocity = 24;
 
 % Solve  MINLP
 [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = ...
-define_terminal_conditions (x_C_0, v_C_0, X_0(:,1), X_0(:,2), x_U_0, v_U_0);
+Collab.define_terminal_conditions (states_c, states_cav, states_u, ...
+    constraints, v_des, reactionTime, minSafeDistance);
