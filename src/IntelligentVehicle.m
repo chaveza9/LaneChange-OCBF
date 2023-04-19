@@ -85,7 +85,7 @@ classdef IntelligentVehicle < handle
                 StopTime double {mustBeNonnegative, mustBeNumeric}
                 constraints
                 Options.SampleTime double {mustBeNonnegative, mustBeNumeric} = 0.01;
-                Options.VehicleType (1,:) char {mustBeMember(Options.VehicleType,{'NonControlled','CAV'})} = 'NonControlled'
+                Options.VehicleType (1,:) char {mustBeMember(Options.VehicleType,{'NonControlled','CAV'})} = 'CAV'
                 Options.SafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 10;
                 Options.ReactionTime (1,:) double {mustBeNumeric, mustBePositive}= 0.9;
                 Options.VehicleClass (1,:) {mustBeInteger} = 1; % 1= car. 2=truck
@@ -219,6 +219,13 @@ classdef IntelligentVehicle < handle
             if hasDefinedCavRoll
                 self.IsCollaborating = hasDefinedCavRoll;
                 self.DrivingBehaviour = 'collaborating';
+                % Define color type based on cav type
+                switch cavType
+                    case 'cavC'
+                        self.Vehicle.PlotColor = 'red';
+                    case 'cav2'
+                        self.Vehicle.PlotColor = 'green';
+                end
             end
             % Propagate collaboration ids
             self.Ego_cav_id = e_collab_id;

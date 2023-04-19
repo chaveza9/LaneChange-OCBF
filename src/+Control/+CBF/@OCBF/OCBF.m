@@ -83,10 +83,12 @@ classdef OCBF < matlab.System
     methods(Access=private, Static)
         function [opts] = define_solver_options()
             % Define solver options
-            opts.jit = true;
-            opts.compiler = 'shell';
-            opts.jit_options.compiler = 'gcc';
-            opts.jit_options.flags = {'-O0'};
+            if ismac
+                opts.jit = true;
+                opts.compiler = 'shell';
+                opts.jit_options.compiler = 'gcc';
+                opts.jit_options.flags = {'-O0'};
+            end
             opts.qpsol = 'nlpsol';
             opts.qpsol_options.nlpsol = 'ipopt';
             opts.qpsol_options.nlpsol_options.ipopt.tol = 1e-7;
