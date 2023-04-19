@@ -180,6 +180,7 @@ classdef IntelligentVehicle < handle
                 option.e_collab_id = NaN;
                 option.f_collab_id = NaN;
                 option.r_collab_id = NaN;
+                option.verbose = false;
             end
             % Sanity Check to make sure that ids have been stablished
             % properly
@@ -206,7 +207,7 @@ classdef IntelligentVehicle < handle
             end
             % Compute Optimal Control Solution
             hasDefinedCavRoll = self.ocp_prob.compute_ocp(...
-                x_0_ego, tf, xf, v_des, x_obst_leader);
+                x_0_ego, tf, xf, v_des, x_obst_leader, option.verbose);
             
             % Update vehicle state
             self.DesSpeed = v_des;

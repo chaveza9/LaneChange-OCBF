@@ -57,9 +57,8 @@ classdef VehicleDynamics < matlab.System
             self.t_k = self.t_k+self.dt;
             % Applies control input to the specified model dynamics
             % Integrate forward
-            tspan = [t_k_1 ,self.t_k];
-            [~,y] = ode45(@(t,y)derivative(self.dynamics,y,u_k),...
-                tspan,self.x_k);
+            [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
+                [t_k_1 ,self.t_k], self.x_k);
             % Extract X(tk)
             self.x_k = y(end, :);
             % Update current state and current time
@@ -105,14 +104,14 @@ classdef VehicleDynamics < matlab.System
             self.t_hist = cat(2, self.t_hist, t);
             self.u_hist = cat(2, self.u_hist, u_k);
         end
+        function x_dot = dynamics(self, ~, x, u)
+            % compute derivatives
+            x_dot = self.f(x)+self.g(x)*u;
+        end
     end
 
     methods (Static)
-        function x_dot = dynamics(~, x, u)
-            % compute derivatives
-            x_dot = f(x)+g(x)*u;
-        end
-        
+   
         function x_dot = f(x)
             x_dot = [x(3) * cos(x(4)), x(3) * sin(x(4)), 0, 0]';
         end

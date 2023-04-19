@@ -41,8 +41,8 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     % define barrierfunctions
     b_v_min = @(x) -(x(2)-self.velMin);
     b_v_max = @(x) -(self.velMax - x(2));
-    b_dist_ego_front = @(x) self.tau*x(2) - (x(3)-x(1) + self.delta_min);
-    b_dist_ego_adj = @(x) phi*x(2) - (x(5)-x(1))  + self.delta_min;
+    b_dist_ego_front = @(x) self.tau*x(2) - (x(3)-x(1) + self.delta_dist);
+    b_dist_ego_adj = @(x) phi*x(2) - (x(5)-x(1))  + self.delta_dist;
     h_safe = {b_v_min,b_v_max, b_dist_ego_front, b_dist_ego_adj};            
     for i =1:length(h_safe)
         % Define barrier function

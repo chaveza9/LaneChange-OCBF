@@ -42,14 +42,14 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     % define barrierfunctions
     b_v_min = @(x) -(x(2)-self.velMin);
     b_v_max = @(x) -(self.velMax - x(2));
-    b_dist_ego_front = @(x) self.tau*x(2) - (x(3)-x(1))+self.delta_min;
+    b_dist_ego_front = @(x) self.tau*x(2) - (x(3)-x(1))+self.delta_dist;
     h_safe = {b_v_min,b_v_max, b_dist_ego_front};            
     for i =1:length(h_safe)
         % Define barrier function
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U <= -slack_cbf(i)*h_s(x_p))
+        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U <= -slack_cbf(i)*h_s_i(x_p))
     end
     
     % Add Actuation Limits
