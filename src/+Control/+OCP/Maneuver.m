@@ -101,16 +101,24 @@
             else
                 accel = optCntrl(end);
             end
+
             %% Declare model variables
-            % Model equations
-            xdot = @(t,x,u)[x(2);u];
-            tk_1 = time;
-            tk = tk_1+self.dt;
-            tspan = [tk_1 ,tk];
-            [~,y] = ode45(@(t,y)xdot(t,y,accel),tspan,[x_0; v_0]);
-            % Extract X(tk)
-            posX = y(end,1);
-            speed = y(end,2);
+            xOpt = self.x_opt;
+            if time <= tf
+                posX = interpn(time_vec,xOpt(1,:),time);
+                speed = interpn(time_vec,xOpt(2,:),time);
+            else
+                % Model equations
+                xdot = @(t,x,u)[x(2);u];
+                tk_1 = time;
+                tk = tk_1+self.dt;
+                tspan = [tk_1 ,tk];
+                [~,y] = ode45(@(t,y)xdot(t,y,accel),tspan,[x_0; v_0]);
+                % Extract X(tk)
+                posX = y(end,1);
+                speed = y(end,2);
+            end
+            
         end    
     end
     

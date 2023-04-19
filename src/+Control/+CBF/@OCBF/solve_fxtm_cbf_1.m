@@ -10,8 +10,14 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     x_p = [x_ego; x_front; zeros(2,1)]; % state variables [x_ego, v_ego, x_obst, v_obst]
     
     %% CBF-CLF Parameters
+    % determine if x_des is feasible
+    if (x_ego(1)-x_des)^2<=10
+        h_des_x = 0;
+    else
+        h_des_x = 1;
+    end
     % Num constraints
-    n_clf = 2; % Desired Speed, Desired Terminal Position
+    n_clf = 1+h_des_x; % Desired Speed, Desired Terminal Position
     n_cbf = 3; % speed constraints, Front vehicle ACC
     % Compute Fixed time guarantees rates
     gamma_1 = 1 + 1/self.mu_clf;
@@ -21,11 +27,19 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     slack_clf = opti.variable(n_clf,1); % control variables 
     slack_cbf = opti.variable(n_cbf,1); % control variables 
     % ----------  Compute conditions CLF ----------
+    % Avoid nullifying desired speed)
+    if norm(x_ego(2) - v_des)<=0.1
+        v_des = v_des+0.1;
+    end
     % Define Lyapunov Function
     h_speed = @(x) (x(2) - v_des)^2;
     h_pos = @(x) (x(1) - x_des)^2;
     % Concatenate functions
-    h_goal = {h_pos, h_speed}; 
+    if h_des_x
+        h_goal = {h_pos, h_speed}; 
+    else
+        h_goal = {h_speed}; 
+    end
     % Define qp matrix
     U = [u_var;zeros(2,1)];
     for i =1:length(h_goal)
@@ -62,7 +76,7 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     % Create quadratic cost
     H_u = 2*eye(self.n_controls);
     H_delta_clf = 2 * eye(n_clf);
-    H_delta_cbf = 200 * eye(n_cbf);
+    H_delta_cbf = 2000 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
     F = [zeros(1, self.n_controls), 2*ones(1,n_clf), zeros(1,n_cbf)];

@@ -23,6 +23,7 @@ constraints.v_max = 35;      % Vehicle i max velocity
 VehID = '1';
 
 % Maneuver 
+dt = 0.1;
 StopTime = 10;
 tf = 7.3744;
 x_f = 362.7484;
@@ -35,9 +36,20 @@ x_0_c.Heading = 0;
 scenario = Env.ds4vehicleScenario(params);
 
 % Create Vehicle
-cav = IntelligentVehicle(VehID, scenario, x_0_c, StopTime, constraints); 
+cav = IntelligentVehicle(VehID, scenario, x_0_c, StopTime, constraints,...
+    'SampleTime', dt);
 % Compute Analytical OCP 
 hasDefinedRoll = cav.define_cav_roll("cav1", tf, x_f, v_des, "verbose",1);
 % Step Through cav
-cav.step()
+for t = 0:dt:StopTime
+    % Compute CBF
+    status = cav.step();
+    if ~status
+        disp(t)
+        warning('invalid solution')
+        break
+    end
+    % Advance simulation
+    advance(scenario)
+end
 
