@@ -32,7 +32,8 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     end
     % Define Lyapunov Function
     h_speed = @(x) (x(2) - v_des)^2;
-    h_pos = @(x) (x(1) - x_des)^2;
+    p1 = 10;
+    h_pos = @(x) 2*(x_des-x(1))*x(2)+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
         h_goal = {h_pos, h_speed}; 
@@ -42,32 +43,36 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     % Define qp matrix
     U = [u_var;zeros(2,1)];
     for i =1:length(h_goal)
+        % Compute gamma exponents
+        opti.subject_to()
         % Define lyapunov function
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        opti.subject_to(Lgh_g(x_p)*U - h_g_i(x_p)* slack_clf(i) <= ...
-            - Lfh_g(x_p) - alpha*max(0,h_g_i(x_p))^gamma_1 -...
+        opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
+            h_g_i(x_p)* slack_clf(i)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
             alpha*max(0,h_g_i(x_p))^gamma_2);                
     end
 
     % ----------  Compute conditions CBF ---------- 
     % define barrierfunctions
-    b_v_min = @(x) -(x(2)-self.velMin);
-    b_v_max = @(x) -(self.velMax - x(2));
-    b_dist_ego_front = @(x) self.tau*x(2) - (x(3)-x(1) + self.delta_dist);
-    b_dist_ego_adj = @(x) phi*x(2) - (x(5)-x(1))  + self.delta_dist;
+    b_v_min = @(x) (x(2)-self.velMin);
+    b_v_max = @(x) (self.velMax - x(2));
+    b_dist_ego_front = @(x) (x(3)-x(1))-self.tau*x(2)-self.delta_dist;
+    b_dist_ego_adj = @(x) (x(5)-x(1))-phi*x(2) -self.delta_dist;
     h_safe = {b_v_min,b_v_max, b_dist_ego_front, b_dist_ego_adj};            
     for i =1:length(h_safe)
         % Define barrier function
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U <= -slack_cbf(i)*h_s_i(x_p))
+        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U+slack_cbf(i)*h_s_i(x_p)>=0)
     end
+    % Add safe slacks
+    opti.subject_to(slack_cbf>=0.01);
     
     % Add Actuation Limits
-    opti.subject_to(u_var>=-self.accelMin)
+    opti.subject_to(u_var>= self.accelMin)
     opti.subject_to(u_var<= self.accelMax)
 
     % ----------  Compute  qp objective ---------- 
@@ -79,7 +84,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     H_delta_cbf = 2000 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
-    F = [zeros(1, self.n_controls), 2*ones(1,n_clf), zeros(1,n_cbf)];
+    F = [zeros(1, self.n_controls), 300*ones(1,n_clf), zeros(1,n_cbf)];
     % Define Objective
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)

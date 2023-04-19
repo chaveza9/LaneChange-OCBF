@@ -71,6 +71,7 @@ classdef IntelligentVehicle < handle
         Ego_cav_id = NaN;
         Front_cav_id = NaN;
         Rear_cav_id = NaN;
+        cav_env= [];
     end
 
 
@@ -162,7 +163,7 @@ classdef IntelligentVehicle < handle
 
         
         function hasDefinedCavRoll = define_cav_roll (...
-                self, cavType, tf, xf, v_des, option)
+                self, cavType, tf, xf, v_des, cav_env, option)
             % Defines the maneuver roll of the vehicle. This can be of type
             %  {'Acceleration','Deceleration','Social','Selfish', 
             % 'SelfishRelaxed'})}. For this purpose a desired speed
@@ -176,12 +177,15 @@ classdef IntelligentVehicle < handle
                 cavType {mustBeMember(cavType,{'cav1','cav2','cavC'})}
                 tf
                 xf
-                v_des = 33;      
+                v_des = 33;  
+                cav_env = []
                 option.e_collab_id = NaN;
                 option.f_collab_id = NaN;
                 option.r_collab_id = NaN;
                 option.verbose = false;
             end
+            % Propagate cav environment
+            self.cav_env = cav_env;
             % Sanity Check to make sure that ids have been stablished
             % properly
             e_collab_id = option.e_collab_id;
@@ -269,7 +273,8 @@ classdef IntelligentVehicle < handle
             [~, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
                 x_k_ego, self.CurrentTime);
             % Compute remaining time from terminal time
-            t_des = max(self.t_f - (self.CurrentTime - self.t_0), 1);
+            t_des = max(self.t_f - (self.CurrentTime - self.t_0), 0.1);
+            % t_des = self.t_f;
             x_des = self.x_f;
             % Compute CBF control input based on reference signal    
             switch self.RollType

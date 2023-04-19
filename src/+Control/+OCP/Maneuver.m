@@ -105,6 +105,7 @@
             %% Declare model variables
             xOpt = self.x_opt;
             if time <= tf
+                time_vec = linspace(t0,tf,self.N+1);
                 posX = interpn(time_vec,xOpt(1,:),time);
                 speed = interpn(time_vec,xOpt(2,:),time);
             else
