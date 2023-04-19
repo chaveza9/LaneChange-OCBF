@@ -49,7 +49,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U <= -slack_cbf(i)*h_s(x_p))
+        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U <= -slack_cbf(i)*h_s_i(x_p))
     end
     
     % Add Actuation Limits
@@ -57,7 +57,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     opti.subject_to(u_var<= self.accelMax)
 
     % ----------  Compute  qp objective ---------- 
-    z_var = [u_var, slack_clf, slack_cbf]';
+    z_var = [u_var; slack_clf; slack_cbf];
     z_var(1:self.n_controls) = z_var(1:self.n_controls) - u_ref;
     % Create quadratic cost
     H_u = 2*eye(self.n_controls);
@@ -73,11 +73,12 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     opts = self.define_solver_options;
     opti.solver('ipopt',opts)
     try
-        solution = opti.solve();
-    catch
+        solution = opti.solve_limited();
+    catch err
+        warning(err.identifier,"%s", err.message)
         status = false;
         u = NaN;
-        warning('infeasible problem detected')
+        warning(err.)
         return
     end
     % Populate return values

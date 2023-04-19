@@ -97,10 +97,9 @@ classdef OCBF < matlab.System
             opts.qpsol_options.nlpsol_options.ipopt.jac_d_constant = 'yes';
             opts.qpsol_options.nlpsol_options.ipopt.accept_every_trial_step = 'yes';
             opts.qpsol_options.nlpsol_options.ipopt.mu_init = 1e-3;
-            
-            opts.qpsol_options.nlpsol_options.ipopt.print_level = 0;
-            %opts.qpsol_options.nlpsol_options.print_time = false;
-            opts.qpsol_options.nlpsol_options.ipopt.linear_solver = 'ma27';
+            opts.qpsol_options.nlpsol_options.ipopt.print_level = 3;
+            opts.qpsol_options.nlpsol_options.print_time = true;
+            % opts.qpsol_options.nlpsol_options.ipopt.linear_solver = 'ma27';
             opts.qpsol_options.print_time = true;
         end
 

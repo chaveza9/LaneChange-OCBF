@@ -57,7 +57,7 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     opti.subject_to(u_var<= self.accelMax)
 
     % ----------  Compute  qp objective ---------- 
-    z_var = [u_var, slack_clf, slack_cbf]';
+    z_var = [u_var; slack_clf; slack_cbf];
     z_var(1:self.n_controls) = z_var(1:self.n_controls) - u_ref;
     % Create quadratic cost
     H_u = 2*eye(self.n_controls);
@@ -71,16 +71,18 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     opti.minimize(objective)
     % ----------  Create solver and solve! ---------- 
     opts = self.define_solver_options;
-    opti.solver('ipopt',opts)
+    opti.solver('sqpmethod',opts)
     try
-        solution = opti.solve();
-    catch
+        solution = opti.solve_limited();
+    catch err
+        warning(err.identifier,"%s", err.message)
         status = false;
         u = NaN;
         warning('infeasible problem detected')
         return
     end
     % Populate return values
+    status = solution.stats.success;
     u = solution.value(u_var);  
     opti.delete()
 end

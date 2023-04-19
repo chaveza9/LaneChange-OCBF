@@ -308,7 +308,7 @@ classdef IntelligentVehicle < handle
             self.CurrentState = self.construct_state_structure(x_k);
             % update Vehicle on DSD
             self.update_dsd_vehicle_states();
-            isRunning = true;
+            isRunning = status;
             % Update Time Step
             self.CurrentTime = self.CurrentTime + self.SampleTime;
         end %step

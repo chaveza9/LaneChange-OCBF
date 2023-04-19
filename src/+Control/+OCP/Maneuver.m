@@ -145,15 +145,22 @@
             else
                 tree_level = 0;
             end
-            opti.solver('ipopt',struct('print_time',verbose,'ipopt',...
-            struct('max_iter',10000,'acceptable_tol',1e-8, ...
-            'print_level',tree_level,'acceptable_obj_change_tol',1e-6))); % set numerical backend
-            
+            % DEFINE SOLVER OPTIONS
+            opts.ipopt.tol = 1e-7;
+            opts.ipopt.tiny_step_tol = 1e-20;
+            opts.ipopt.acceptable_obj_change_tol = 1e-6;
+            opts.ipopt.acceptable_tol=1e-8;
+            opts.ipopt.accept_every_trial_step = 'yes';
+            opts.ipopt.mu_init = 1e-3;
+            opts.ipopt.print_level = tree_level;
+            opts.print_time = verbose;
+            opti.solver('ipopt',opts)
             % Create solver and solve!
             try
                 % solution = opti.solve();
                 solution = opti.solve_limited();
-            catch
+            catch err
+                warning(err.identifier,"%s", err.message)
                 status = false;
                 x = NaN;
                 u = NaN;
