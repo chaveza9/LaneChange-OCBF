@@ -52,6 +52,11 @@ classdef VehicleDynamics < matlab.System
            else
                u_k = varargin{:};
            end
+            % Make sure that the control input is of right size
+            if length(u_k)<2
+                %only acceleration is provided, keep steering angle
+                u_k = [u_k,0]';
+            end
             % Propagate Time
             t_k_1 = self.t_k;
             self.t_k = self.t_k+self.dt;
