@@ -253,7 +253,11 @@ classdef IntelligentVehicle < handle
                 % Apply constant control input
                 x_k = self.Dynamics.integrate_forward();
                 self.CurrentState = self.construct_state_structure(x_k);
+                % update Vehicle on DSD
+                self.update_dsd_vehicle_states();
                 isRunning = true;
+                % Update Time Step
+                self.CurrentTime = self.CurrentTime + self.SampleTime;
                 return
             end
             % ----------- Vehicle is collaborating ------------------------

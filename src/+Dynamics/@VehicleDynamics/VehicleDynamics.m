@@ -18,6 +18,8 @@ classdef VehicleDynamics < matlab.System
         dt (1,1) double {mustBeReal, mustBeFinite} = 0.01
         % Current time
         t_k(1,1) double {mustBeReal, mustBeFinite} = 0
+        % Integration Substeps
+        N_substeps = 1;
         
     end
     % provate properties
@@ -44,13 +46,37 @@ classdef VehicleDynamics < matlab.System
         end 
     end
     methods (Access = public)
-        function x_curr = integrate_forward(self, varargin)
+        % function x_curr = integrate_forward(self, varargin)
+        %     % Computes the step of a model using the predefined kinematic model
+        %     % at dt. Uses ODE45 with the last time step
+        %    if nargin == 1
+        %        u_k = [0,0]';
+        %    else
+        %        u_k = varargin{:};
+        %    end
+        %     % Make sure that the control input is of right size
+        %     if length(u_k)<2
+        %         %only acceleration is provided, keep steering angle
+        %         u_k = [u_k,0]';
+        %     end
+        %     % Propagate Time
+        %     self.t_k = self.t_k+self.dt;
+        %     % Applies control input to the specified model dynamics
+        %     % Integrate forward
+        %     x_curr = self.integrate(self.t_k, self.x_k, u_k);
+        %     % Update current state and current time
+        %     self.add_state_history(x_curr, u_k, self.t_k)
+        %     self.x_k = x_curr;
+        % end
+         function x_curr = integrate_forward(self, varargin)
             % Computes the step of a model using the predefined kinematic model
             % at dt. Uses ODE45 with the last time step
            if nargin == 1
                u_k = [0, 0]';
+               flag = 0;
            else
                u_k = varargin{:};
+               flag = 0;
            end
             % Make sure that the control input is of right size
             if length(u_k)<2
@@ -62,8 +88,12 @@ classdef VehicleDynamics < matlab.System
             self.t_k = self.t_k+self.dt;
             % Applies control input to the specified model dynamics
             % Integrate forward
-            [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
-                [t_k_1 ,self.t_k], self.x_k);
+            if flag
+                y = self.integrate_euler(self.t_k, self.x_k, u_k)';
+            else
+                [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
+                    [t_k_1 ,self.t_k], self.x_k);
+            end
             % Extract X(tk)
             self.x_k = y(end, :);
             % Update current state and current time
@@ -102,7 +132,16 @@ classdef VehicleDynamics < matlab.System
     end
     
     methods (Access = private)
-        
+        function x = integrate_euler(self, t, x_0, u)
+            substeps = 1;
+            % Solve the MPC problem to get the next state
+            % Integrate forward
+            x = x_0;
+            xdot = self.dynamics(t,x,u);
+            for i=1:substeps
+                x = x + xdot*self.dt/self.N_substeps;
+            end
+        end
         function add_state_history(self, x_k, u_k, t)
             % Decompose states
             self.x_hist = cat(2, self.x_hist, x_k);

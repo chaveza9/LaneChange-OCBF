@@ -102,7 +102,7 @@ classdef OCBF < matlab.System
             opts.qpsol_options.nlpsol_options.ipopt.print_level = 0;
             opts.qpsol_options.nlpsol_options.print_time = false;
             % opts.qpsol_options.nlpsol_options.ipopt.linear_solver = 'ma27';
-            opts.qpsol_options.print_time = true;
+            opts.qpsol_options.print_time = false;
         end
 
          %% Define Control Affine Dynamics

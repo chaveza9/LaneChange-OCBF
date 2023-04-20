@@ -27,7 +27,7 @@ function [figScene, lineHandles] = createVisualizationPlot(scenarioObj,params,ve
     % Add the chase plot
     hCarViewPanel = uipanel(figScene,'Position',[0.5 0 0.5 1],'Title','Chase Camera View');
     hCarPlot = axes(hCarViewPanel);
-    chasePlot(Vehicle,'ViewLocation',-[params.actors.carLen*3, 0],'ViewHeight',10,'ViewPitch',20, 'Parent',hCarPlot,'Meshes','on');
+    chasePlot(Vehicle,'ViewLocation',-[params.actors.carLen*6, 0],'ViewHeight',15,'ViewPitch',20, 'Parent',hCarPlot,'Meshes','on');
 
     % Add annotations to chase plot
     annotationSpacing = 0.05;
@@ -55,7 +55,7 @@ function [figScene, lineHandles] = createVisualizationPlot(scenarioObj,params,ve
     % Add the top view of the generated scenario
     hViewPanel = uipanel(figScene,'Position',[0 0 0.5 1],'Title','Top View');
     hCarPlot = axes(hViewPanel);
-    chasePlot(Vehicle,'ViewLocation',-[params.actors.carLen*3, 0],'ViewHeight',200,'ViewPitch',90, 'Parent',hCarPlot,'Meshes','on');
+    chasePlot(Vehicle,'ViewLocation',-[params.actors.carLen*3, 0],'ViewHeight',300,'ViewPitch',90, 'Parent',hCarPlot,'Meshes','on');
    
 
 end % function

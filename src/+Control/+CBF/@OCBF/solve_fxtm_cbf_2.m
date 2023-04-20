@@ -69,7 +69,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
         opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U+slack_cbf(i)*h_s_i(x_p)>=0)
     end
     % Add safe slacks
-    % opti.subject_to(slack_cbf>=0.01);
+    opti.subject_to(slack_cbf>=0.01);
     
     % Add Actuation Limits
     opti.subject_to(u_var>= self.accelMin)
