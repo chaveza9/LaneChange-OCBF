@@ -27,7 +27,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     slack_cbf = opti.variable(n_cbf,1); % control variables 
     % ----------  Compute conditions CLF ----------
     % Avoid nullifying desired speed)
-    if norm(x_ego(2) - v_des)<=0.1
+    if norm(x_ego(2) - v_des)<=0.01
         v_des = v_des+0.1;
     end
     % Define Lyapunov Function
@@ -59,7 +59,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     b_v_min = @(x) (x(2)-self.velMin);
     b_v_max = @(x) (self.velMax - x(2));
     b_dist_ego_front = @(x) (x(3)-x(1))-self.tau*x(2)-self.delta_dist;
-    b_dist_ego_adj = @(x) (x(5)-x(1))-phi*x(2) -self.delta_dist;
+    b_dist_ego_adj = @(x) (x(5)-x(1))-phi(x)*x(2) -self.delta_dist;
     h_safe = {b_v_min,b_v_max, b_dist_ego_front, b_dist_ego_adj};            
     for i =1:length(h_safe)
         % Define barrier function
@@ -69,7 +69,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
         opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U+slack_cbf(i)*h_s_i(x_p)>=0)
     end
     % Add safe slacks
-    opti.subject_to(slack_cbf>=0.01);
+    % opti.subject_to(slack_cbf>=0.01);
     
     % Add Actuation Limits
     opti.subject_to(u_var>= self.accelMin)
@@ -90,7 +90,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     opti.minimize(objective)
     % ----------  Create solver and solve! ---------- 
     opts = self.define_solver_options;
-    opti.solver('ipopt',opts)
+    opti.solver('sqpmethod',opts)
     try
         solution = opti.solve_limited();
     catch err
@@ -101,6 +101,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
         return
     end
     % Populate return values
+    status = solution.stats.success;
     u = solution.value(u_var);  
     opti.delete()
 end

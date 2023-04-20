@@ -10,7 +10,7 @@ tic
 StopTime = 10;
 dt = 0.01;
 % CAV set
-num_vehicles = 5; % number of vehicles in fast lane
+num_vehicles = 2; % number of vehicles in fast lane
 v_des_range = [25,30];
 min_pos = 0;
 % Maneuver constraints
@@ -35,24 +35,24 @@ states.Position = [0,params.road.laneWidth*0.5]';
 states.Velocity = 0;
 states.Heading = 0;
 states_cav = repelem(states, num_vehicles);
+% Vehicle C States;
+states_c = states;
+states_c.Position(1) = 30;
+states_c.Position(2) = -params.road.laneWidth*0.5;
+states_c.Velocity = 24;
 % Vehicle 1 States;
-states_cav(1).Position(1) = 115;
-states_cav(1).Velocity = 28;
+states_cav(1).Position(1) = 25;
+states_cav(1).Velocity = 24;
 % Vehicle 2 States;
-states_cav(2).Position(1) = 85;
-states_cav(2).Velocity = 28;
-% Vehicle 3 States;
-states_cav(3).Position(1) = 60;
-states_cav(3).Velocity = 24;
-% Vehicle 4 States;
-states_cav(4).Position(1) = 25;
-states_cav(4).Velocity = 24;
-% Vehicle 5 States;
-states_cav(5).Position(1) = 0;
-states_cav(5).Velocity = 24;
+states_cav(2).Position(1) = 0;
+states_cav(2).Velocity = 24;
 %% Create Scenario and initialize vehicles
 % Create a driving scenario
 scenario = Env.ds4vehicleScenario(params);
+% Create CAV C
+cav_c = IntelligentVehicle('c', scenario, states_c, StopTime, ...
+    constraints, 'SafetyDistance',minSafeDistance, 'SampleTime', dt, ...
+    'ReactionTime',reactionTime); 
 % Create CAV Set
 cav_set = [];
 for i=1:num_vehicles
@@ -62,25 +62,33 @@ for i=1:num_vehicles
         'SampleTime', dt, 'ReactionTime',reactionTime);  
     cav_set = cat(1,cav_set,veh);
 end
+cav_set = [cav_set;cav_c];
 % Create Chase plot 
 figScene = Env. createVisualizationPlot(scenario,params,num2str(num_vehicles));
 %% Define terminal conditions
+% terminal time
 tf = 7.38;
-x_f = [362.7484,322.5495,284.7445,247.4885, 178.4438]';
-v_f = [28.0000,27.9988,25.3389,24.7289,21.5156]';
+% Vehicle C terminal conditions
+x_e_f = 212.8078;
+v_e_f = 21.8674;
+% CAV Set terminal conditions
+x_f = [247.4885, 178.4438, x_e_f]';
+v_f = [24.7289,21.5156,v_e_f]';
 % Compute Analytical OCP 
 %% Compute OCP
-for i=1:num_vehicles
-    hasDefinedRoll = cav_set(i).define_cav_roll("cav1", tf, ...
-        x_f(i), v_f(i), cav_set);
-    if ~hasDefinedRoll
-        warning('solution not found, for cav %s', cav_set(i).VehicleID)
-    end
-end
+veh_c_id = 'c';
+veh_1_id = '1';
+veh_2_id = '2';
+cav_c.define_cav_roll("cavC", tf, x_e_f, v_des,cav_set, ...
+    'f_collab_id',veh_1_id, 'r_collab_id',veh_2_id);
+cav_set(1).define_cav_roll("cav1", tf, x_f(1), v_des,cav_set);
+hasDefinedRoll = cav_set(2).define_cav_roll("cav2", tf, x_f(i), v_f(i),...
+    cav_set,'f_collab_id',veh_1_id, 'e_collab_id',veh_c_id);
+
 %% Step Through cav
-for t = 0:dt:StopTime           
+for t = 0:dt:tf           
     % Compute CBF
-    for i=1:num_vehicles
+    for i=1:num_vehicles+1
         status = cav_set(i).step;
         if ~status
             disp(t)

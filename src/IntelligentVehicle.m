@@ -290,7 +290,12 @@ classdef IntelligentVehicle < handle
                 % cav C terminal position
                 case 'cav2'
                     collab = 1;
-                    phi = self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
+                    %delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
+                    if norm(x_k_ego(1)-x_des)>=3
+                        phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
+                    else
+                        phi = @(x) self.ReactionTime;
+                    end
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Ego_cav_id));
@@ -301,7 +306,12 @@ classdef IntelligentVehicle < handle
                 % CAV 1
                 case 'cavC'
                     collab = 1;
-                    phi = self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
+                    %self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
+                    if norm(x_k_ego(1)-x_des)>=3
+                        phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
+                    else
+                        phi = @(x) self.ReactionTime;
+                    end
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
@@ -363,9 +373,6 @@ classdef IntelligentVehicle < handle
                 isLeader = false;
             end
         end %find_leader
-
-        
-
     end %public Methods
 
     
@@ -441,9 +448,9 @@ classdef IntelligentVehicle < handle
                 'Velocity',states(3),...
                 'Heading',states(4));
         end
-        function phi = delta_fun (x_curr, x_des, x_0,tau)
-            phi = tau*(x_curr-x_0)/(x_des-x_0);
-        end
+        % function phi = delta_fun (x_curr, x_des, x_0,tau)
+        %     phi = tau*(x_curr-x_0)/(x_des-x_0);
+        % end
     end
 end
 

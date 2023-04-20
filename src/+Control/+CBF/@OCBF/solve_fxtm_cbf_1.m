@@ -25,7 +25,7 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     %% Define Fixed Time constraints
     % alpha_i = opti.variable(n_clf,2); % time constraints
     % mu = opti.variable(n_clf,1); % tunning value
-    % opti.subject_to(mu>=1)
+    % opti.subject_to(slack_clf<=-0.1)
     % Compute Fixed time guarantees rates
     gamma_1 = 1 + 1/self.mu_clf;
     gamma_2 = 1 - 1/self.mu_clf;
