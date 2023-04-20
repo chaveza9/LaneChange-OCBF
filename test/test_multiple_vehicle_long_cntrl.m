@@ -10,7 +10,7 @@ tic
 StopTime = 10;
 dt = 0.01;
 % CAV set
-num_vehicles = 2; % number of vehicles in fast lane
+num_vehicles = 5; % number of vehicles in fast lane
 v_des_range = [25,30];
 min_pos = 0;
 % Maneuver constraints
@@ -41,6 +41,15 @@ states_cav(1).Velocity = 28;
 % Vehicle 2 States;
 states_cav(2).Position(1) = 85;
 states_cav(2).Velocity = 28;
+% Vehicle 3 States;
+states_cav(3).Position(1) = 60;
+states_cav(3).Velocity = 24;
+% Vehicle 4 States;
+states_cav(4).Position(1) = 25;
+states_cav(4).Velocity = 24;
+% Vehicle 5 States;
+states_cav(5).Position(1) = 0;
+states_cav(5).Velocity = 24;
 %% Create Scenario and initialize vehicles
 % Create a driving scenario
 scenario = Env.ds4vehicleScenario(params);
@@ -53,11 +62,12 @@ for i=1:num_vehicles
         'SampleTime', dt, 'ReactionTime',reactionTime);  
     cav_set = cat(1,cav_set,veh);
 end
-
+% Create Chase plot 
+figScene = Env. createVisualizationPlot(scenario,params,num2str(num_vehicles));
 %% Define terminal conditions
 tf = 7.38;
-x_f = [362.7484, 322.5495]';
-v_f = [28.0000, 27.9988]';
+x_f = [362.7484,322.5495,284.7445,247.4885, 178.4438]';
+v_f = [28.0000,27.9988,25.3389,24.7289,21.5156]';
 % Compute Analytical OCP 
 %% Compute OCP
 for i=1:num_vehicles
@@ -81,4 +91,6 @@ for t = 0:dt:tf+dt
     % Advance simulation
     advance(scenario)
 end
-
+% Display the terminal position for each cav
+    ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_set,'UniformOutput',false);
+disp(ter_pos);
