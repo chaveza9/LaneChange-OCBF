@@ -135,3 +135,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# MAC related files
+.DS_Store
+
+# Jit files
+jit*
+tmp*
