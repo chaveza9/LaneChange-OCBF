@@ -87,7 +87,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     H_delta_cbf = 200 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
-    F = [zeros(1, self.n_controls), 30*ones(1,n_clf), -300*ones(1,n_cbf)];
+    F = [zeros(1, self.n_controls), 300*ones(1,n_clf), zeros(1,n_cbf)];
     % Define Objective
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)
