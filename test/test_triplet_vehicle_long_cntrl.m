@@ -97,7 +97,7 @@ for t = 0:dt:tf
         end
     end
     % Advance simulation
-    advance(scenario)
+    advance(scenario);
 end
 % Display the terminal position for each cav
     ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_set,'UniformOutput',false);

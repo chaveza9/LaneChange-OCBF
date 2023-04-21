@@ -294,9 +294,18 @@ classdef IntelligentVehicle < handle
                 % cav C terminal position
                 case 'cav2'
                     collab = 1;
-                    %delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
-                    if norm(x_k_ego(1)-x_des)>=3
-                        phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
+                    
+                    % Extract adj vehicle
+                    adj_cav = self.find_vehicle_from_id(self.Ego_cav_id);
+                    Lm = adj_cav.x_f - adj_cav.x_0(1);
+                    Li = self.x_f - self.x_0(1);
+                    if norm(x_k_ego(1)-x_des)>=0.01
+                        safety_term  = (Lm - Li + ...
+                            self.MinSafetyDistance)/self.x_0(2);
+                        phi = @(x)(self.ReactionTime+ ...
+                            safety_term)*min((x(1)-self.x_0(1))/Li, 1) - ...
+                            safety_term;
+                        % phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
                     else
                         phi = @(x) self.ReactionTime;
                     end
@@ -310,15 +319,24 @@ classdef IntelligentVehicle < handle
                 % CAV 1
                 case 'cavC'
                     collab = 1;
-                    %self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
-                    if norm(x_k_ego(1)-x_des)>=3
-                        phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
+                    % Extract adj vehicle
+                    adj_cav = self.find_vehicle_from_id(self.Front_cav_id);
+                    Lm = adj_cav.x_f - adj_cav.x_0(1);
+                    Li = self.x_f - self.x_0(1);
+                    if norm(x_k_ego(1)-x_des)>=0.01
+                        safety_term  = (Lm - Li + ...
+                            self.MinSafetyDistance)/self.x_0(2);
+                        phi = @(x)(self.ReactionTime+ ...
+                            safety_term)*min((x(1)-self.x_0(1))/Li, 1) - safety_term;
+                        % phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
                     else
                         phi = @(x) self.ReactionTime;
                     end
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
+                    % u_ref = 0;
+                    % v_ref = self.DesSpeed;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
                         phi, t_des, x_des);
@@ -410,14 +428,19 @@ classdef IntelligentVehicle < handle
     %% Util Methods (Methods used only by this class)
     methods (Access = private)
 
-        function states = extract_states_from_id(self, id)
+       function states = extract_states_from_id(self, id)
             actors = self.Scenario.Actors;
             veh_index = find([actors.Name]== id);
             states.Position = actors(veh_index).Position(1:2)';
             states.Velocity = norm(actors(veh_index).Velocity(1:2));
             states.Heading = actors(veh_index).Yaw*pi/180;
-           
-        end
+       end
+       function cav = find_vehicle_from_id(self, id)
+            names = arrayfun(@(x) x.VehicleID',self.cav_env,'UniformOutput',false);
+            index = find(strcmp(names,id));
+            cav = self.cav_env(index);
+       end
+
        function hasBeenUpdated = update_dsd_vehicle_states(obj)
             %Updates states on dsd scenario by retrieving states from SUMO
             %and then forcing output on DSD scenario
@@ -425,7 +448,7 @@ classdef IntelligentVehicle < handle
             try
                 % Update states from vehicle on scenario
                 obj.Vehicle.Position(1:2) = obj.CurrentState.Position;
-                obj.Vehicle.Velocity(1:2) = obj.CurrentState.Velocity;
+                obj.Vehicle.Velocity(1) = obj.CurrentState.Velocity;
                 obj.Vehicle.Yaw = obj.CurrentState.Heading*180/pi;
                 hasBeenUpdated = true;
             catch err
@@ -445,7 +468,7 @@ classdef IntelligentVehicle < handle
         end
         function state = contruct_integrator_states(state_struct)
             state = [state_struct.Position(1); ...
-                     norm(state_struct.Velocity(1))];
+                     state_struct.Velocity(1)];
         end
         function state_struct = construct_state_structure(states)
             state_struct = struct('Position',states(1:2),...
@@ -459,42 +482,5 @@ classdef IntelligentVehicle < handle
 end
 
 
-        % function isRunning = step(self)
-        %     % Performs an update step and increases time step by one.
-        %     % Additionally, it updates vehicle position on DSD scenario and
-        %     % behaves according to current behaviour type
-        %     % -------------------------------------------------------------
-        %     if self.CurrentTime <= self.StopTime
-        %         % Find behaviour
-        %         isDone = false;
-        %         switch self.DrivingBehaviour
-        %             case 'collaborating'
-        %                 % Collaborating State
-        %                 [states, isDone]= self.Dynamics.update();
-        %                 if isDone
-        %                     % Set Has arrived variable to true
-        %                     self.HasArrived = true;
-        %                 end
-        %             otherwise % selfless
-        %                 % Apply current Speed
-        %                 states = self.Dynamics.update_state();
-        %         end
-        %         % update states
-        %         self.CurrentState = self.construct_state_structure(states);
-        %         % update Vehicle on DSD
-        %         self.update_dsd_vehicle_states();
-        %         % Update Time Step
-        %         self.CurrentTime = self.CurrentTime + self.SampleTime;
-        %         % update state for output
-        %         if ~isDone
-        %             isRunning = true;
-        %         else
-        %             isRunning = false;
-        %         end
-        %     else
-        %         isRunning = false;
-        %         warning('Simulation has reached defined final time')
-        %     end
-        % 
-        % end %step
+      
 

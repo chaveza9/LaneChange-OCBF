@@ -72,6 +72,13 @@ grid minor
 legend('\delta_1', '\delta_2')
 xlabel('Time [s]')
 xlim([0, t_end_t])
+figure
+t_hist = linspace(0, t_end_t, length(u_history));
+plot(t_hist,u_history); hold on
+grid minor
+legend('accel [m/s^2]')
+xlabel('Time [s]')
+xlim([0, t_end_t])
 % axis equal
 
 

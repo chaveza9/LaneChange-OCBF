@@ -26,8 +26,8 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         v_max = constraints.v_max;   % Vehicle i max velocity [m/s]
         v_min = constraints.v_min;   % Vehicle i min velocity [m/s]
 
-        T_max = 20;     % maximum allowable time
-        t_avg = 5;      % Average time
+        T_max = 25;     % maximum allowable time
+        t_avg = 8;      % Average time
         % Tunning Constants
         gamma_t = 1/T_max;
         gamma = 0.5;
