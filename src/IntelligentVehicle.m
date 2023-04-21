@@ -277,7 +277,7 @@ classdef IntelligentVehicle < handle
             [~, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
                 x_k_ego, self.CurrentTime);
             % Compute remaining time from terminal time
-            t_des = max(self.t_f - (self.CurrentTime - self.t_0), 0.1);
+            t_des = max(abs(self.t_f - (self.CurrentTime - self.t_0)), 0.01);
             % t_des = self.t_f;
             x_des = self.x_f;
             % Compute CBF control input based on reference signal    
@@ -295,7 +295,7 @@ classdef IntelligentVehicle < handle
                 case 'cav2'
                     collab = 1;
                     %delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
-                    if norm(x_k_ego(1)-x_des)>=3
+                    if norm(x_k_ego(1)-x_des)>=0.1
                         phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
                     else
                         phi = @(x) self.ReactionTime;
@@ -311,7 +311,7 @@ classdef IntelligentVehicle < handle
                 case 'cavC'
                     collab = 1;
                     %self.delta_fun(x_k_ego(1), x_des, self.x_0, 1.2);
-                    if norm(x_k_ego(1)-x_des)>=3
+                    if norm(x_k_ego(1)-x_des)>=0.1
                         phi = @(x) self.ReactionTime*x(1)/(x_des-self.x_0(1));
                     else
                         phi = @(x) self.ReactionTime;
@@ -414,7 +414,7 @@ classdef IntelligentVehicle < handle
             actors = self.Scenario.Actors;
             veh_index = find([actors.Name]== id);
             states.Position = actors(veh_index).Position(1:2)';
-            states.Velocity = norm(actors(veh_index).Velocity(1:2));
+            states.Velocity = (actors(veh_index).Velocity(1));
             states.Heading = actors(veh_index).Yaw*pi/180;
            
         end
@@ -425,7 +425,7 @@ classdef IntelligentVehicle < handle
             try
                 % Update states from vehicle on scenario
                 obj.Vehicle.Position(1:2) = obj.CurrentState.Position;
-                obj.Vehicle.Velocity(1:2) = obj.CurrentState.Velocity;
+                obj.Vehicle.Velocity(1) = obj.CurrentState.Velocity;
                 obj.Vehicle.Yaw = obj.CurrentState.Heading*180/pi;
                 hasBeenUpdated = true;
             catch err

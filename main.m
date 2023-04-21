@@ -6,9 +6,12 @@ addpath(['.',filesep,'src',filesep]);
 import casadi.*
 tic
 %% Environmental Setting
+filmVideo = 1;
+TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');
+TOD = string(TOD);
 % Simulation setting
 StopTime = 10;
-dt = 0.01;
+dt = 0.05;
 % CAV set
 num_vehicles = 5; % number of vehicles in fast lane
 v_des_range = [25,30];
@@ -122,7 +125,9 @@ fprintf("Has solved computed ocp, elapsed time: %f \n", toc)
 %% Step Through cav
 fprintf("Stepping though...\n")
 compute_time = [];
-for t = 0:dt:tf           
+frameCount = 1;
+StopTime = tf;
+for t = 0:dt:StopTime           
     % Compute CBF
     tic
     for i=1:num_vehicles+2
@@ -135,9 +140,26 @@ for t = 0:dt:tf
     end
     compute_time = cat(1,compute_time, toc);
     % Advance simulation
-    advance(scenario)
+    advance(scenario);
+    % If video is requested
+    if filmVideo
+        Frames(frameCount) = getframe(gcf);
+        frameCount = frameCount+1;
+    end
+
 end
 fprintf("Has Finished simulation, average step compute time: %f \n", mean(compute_time))
 % Display the terminal position for each cav
 ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_env,'UniformOutput',false);
 disp(ter_pos);
+
+% Generate video
+if filmVideo
+    filename = strcat('.',filesep,'Results',filesep,'test_',TOD,'.mp4');
+    fprintf("Generating video...\n")
+    writerObj = VideoWriter(filename,'MPEG-4');
+    writerObj.FrameRate = round(frameCount/StopTime);
+    open(writerObj)
+    writeVideo(writerObj, Frames);
+    close(writerObj);
+end

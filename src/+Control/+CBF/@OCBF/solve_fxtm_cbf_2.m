@@ -50,7 +50,7 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
         opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
-            h_g_i(x_p)* slack_clf(i)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
+             slack_clf(i)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
             alpha*max(0,h_g_i(x_p))^gamma_2);                
     end
 
@@ -80,8 +80,8 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     z_var(1:self.n_controls) = z_var(1:self.n_controls) - u_ref;
     % Create quadratic cost
     H_u = 2*eye(self.n_controls);
-    H_delta_clf = 2 * eye(n_clf);
-    H_delta_cbf = 2000 * eye(n_cbf);
+    H_delta_clf = 200 * eye(n_clf);
+    H_delta_cbf = 200 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
     F = [zeros(1, self.n_controls), 300*ones(1,n_clf), zeros(1,n_cbf)];
@@ -90,7 +90,10 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     opti.minimize(objective)
     % ----------  Create solver and solve! ---------- 
     opts = self.define_solver_options;
-    opti.solver('sqpmethod',opts)
+    % opti.solver('sqpmethod',opts)
+    opti.solver('ipopt',struct('print_time',0,'ipopt',...
+    struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',1,...
+    'acceptable_obj_change_tol',1e-6))); % set numerical backend
     try
         solution = opti.solve_limited();
     catch err

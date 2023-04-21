@@ -8,7 +8,7 @@ tic
 %% Environmental Setting
 % Simulation setting
 StopTime = 10;
-dt = 0.01;
+dt = 0.1;
 % CAV set
 num_vehicles = 2; % number of vehicles in fast lane
 v_des_range = [25,30];
@@ -97,7 +97,7 @@ for t = 0:dt:tf
         end
     end
     % Advance simulation
-    advance(scenario)
+    advance(scenario);
 end
 % Display the terminal position for each cav
     ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_set,'UniformOutput',false);

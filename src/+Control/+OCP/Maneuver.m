@@ -19,7 +19,9 @@
         delta_dist = 4.2         % Min Safety distance [m]
         delta_tol = 3            % Tolerance Delta speed 
         alpha_energy = 0.4       % Energy Cost gain
-        Verbose = false          % print solution iteration        
+        Verbose = false          % print solution iteration    
+        TimeBased = false        % Extract Input based on time or position
+        DesSpeed = 30;           % Desired free flow speed [m/s]
     end
 
     %% Properties
@@ -76,6 +78,7 @@
             self.x_opt = x_hist; 
             self.terminalTime = tf;
             self.terminalPosition = xf;
+            self.DesSpeed = v_des;
 
         end
         
@@ -85,6 +88,7 @@
                 error('Maneuver needs to be started first')
             end
             optCntrl = self.u_opt;
+            xOpt = self.x_opt;
             % Compute current vehicle state
        
             x_0 = currState(1);     % Vehicle initial position
@@ -96,22 +100,22 @@
             % Create time vector
             time_vec = linspace(t0,tf,self.N);
             % Compute Control strategy at current time step
-            if time <= tf
-                accel = interpn(time_vec,optCntrl,time);
-            else
-                accel = optCntrl(end);
+            if ~self.TimeBased
+                % Extract time estimate based on position
+                time = interpn(xOpt(1,:),linspace(t0,tf,self.N+1), x_0);
             end
 
             %% Declare model variables
-            xOpt = self.x_opt;
             if time <= tf
+                accel = interpn(time_vec,optCntrl,time);
                 time_vec = linspace(t0,tf,self.N+1);
                 posX = interpn(time_vec,xOpt(1,:),time);
                 speed = interpn(time_vec,xOpt(2,:),time);
             else
-                % Model equations
+                % Maintain Speed
+                accel = 0;
                 xdot = @(t,x,u)[x(2);u];
-                tk_1 = time;
+                tk_1 = tf;
                 tk = tk_1+self.dt;
                 tspan = [tk_1 ,tk];
                 [~,y] = ode45(@(t,y)xdot(t,y,accel),tspan,[x_0; v_0]);
@@ -119,6 +123,9 @@
                 posX = y(end,1);
                 speed = y(end,2);
             end
+            
+                
+            
             
         end    
     end

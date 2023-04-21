@@ -73,10 +73,8 @@ classdef VehicleDynamics < matlab.System
             % at dt. Uses ODE45 with the last time step
            if nargin == 1
                u_k = [0, 0]';
-               flag = 0;
            else
                u_k = varargin{:};
-               flag = 0;
            end
             % Make sure that the control input is of right size
             if length(u_k)<2
@@ -88,12 +86,8 @@ classdef VehicleDynamics < matlab.System
             self.t_k = self.t_k+self.dt;
             % Applies control input to the specified model dynamics
             % Integrate forward
-            if flag
-                y = self.integrate_euler(self.t_k, self.x_k, u_k)';
-            else
-                [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
-                    [t_k_1 ,self.t_k], self.x_k);
-            end
+            [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
+                [t_k_1 ,self.t_k], self.x_k);
             % Extract X(tk)
             self.x_k = y(end, :);
             % Update current state and current time
