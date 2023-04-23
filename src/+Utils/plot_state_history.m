@@ -21,6 +21,11 @@ for i = 1:num_vehicles
     end
     grid minor
     ylabel(strcat("x_",veh_env(i).VehicleID, " [m]"))
+    title('')
+    if i ~=num_vehicles
+        xlabel('',"HandleVisibility","off")
+    end
+
 end
 % Add x label
 xlabel("Time [s]")
@@ -38,6 +43,10 @@ for i = 1:num_vehicles
     end
     grid minor
     ylabel(strcat("v_",veh_env(i).VehicleID, " [m/s]"))
+    title('')
+    if i ~=num_vehicles
+        xlabel('',"HandleVisibility","off")
+    end
 end
 % Add x label
 xlabel("Time [s]")
@@ -51,6 +60,10 @@ for i = 1:num_vehicles
     hold on
     grid minor
     ylabel(strcat("u_",veh_env(i).VehicleID, " [m/s^2]"))
+   title('')
+    if i ~=num_vehicles
+        xlabel('', "HandleVisibility","off")
+    end
 end
 % Add x label
 xlabel("Time [s]")
@@ -73,6 +86,7 @@ plot(cav_2.get_state_history("x"),"DisplayName","CAV 2")
 plot(cav_2.get_state_history("safety"),"--","DisplayName","CAV 2 Safe Set")
 ylabel("Position [x]")
 legend('Location','best')
+title("Optimal Triplet Position History")
 subplot(2, 1, 2)
 % Extract terminal positions triplet
 xf_1 = cav_1.get_state_history("x");
@@ -87,6 +101,7 @@ plot(cav_c.get_state_history("x"),"DisplayName","CAV C")
 plot(cav_c.get_state_history("safety"),"--","DisplayName","CAV C Safe Set")
 plot(xf_1,"-.","DisplayName","Terminal Position 1")
 plot(xf_2,"-.","DisplayName","Terminal Position 2")
+title('')
 ylabel("Position [x]")
 xlabel("Time [s]")
 legend('Location','best')
@@ -94,7 +109,8 @@ legend('Location','best')
 names = ["position", "speed", "acceleration", "triplet_history"];
 if ~isempty(save_location)
     for i=1:4
-        savefig(f(i),strcat(save_location,filesep,names(i),'pdf'))
+        savefig(f(i),strcat(save_location,filesep,names(i)))
+        saveas(f(i),strcat(save_location,filesep,names(i),'.pdf'))
     end
 end
 
