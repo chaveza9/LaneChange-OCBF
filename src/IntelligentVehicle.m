@@ -395,6 +395,49 @@ classdef IntelligentVehicle < handle
                 isLeader = false;
             end
         end %find_leader
+        function state_hist = get_state_history(self, type)
+            % Returns the timeseries datatype of state history
+            arguments
+                self
+                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','ang_rate','safety'})} 
+            end
+            
+            switch type
+                case 'x'
+                    %Position x
+                    time = self.Dynamics.t_hist;
+                    vec = self.Dynamics.x_hist(1,:);
+                case 'y'
+                    %Position y
+                    time = self.Dynamics.t_hist;
+                    vec = self.Dynamics.x_hist(2,:);
+                case 'v'
+                    %speed
+                    time = self.Dynamics.t_hist;
+                    vec = self.Dynamics.x_hist(3,:);
+                case 'theta'
+                    %Heading Angle
+                    time = self.Dynamics.t_hist;
+                    vec = self.Dynamics.x_hist(4,:);
+                case 'accel'
+                    % Acceleration
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.Dynamics.u_hist(1,:);
+                case 'ang_rate'
+                    % Angular Rate
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.Dynamics.u_hist(2,:);
+                case 'safety'
+                    %Position x
+                    time = self.Dynamics.t_hist;
+                    pos = self.Dynamics.x_hist(1,:);
+                    speed = self.Dynamics.x_hist(3,:);
+                    vec = pos+speed*self.ReactionTime+self.MinSafetyDistance;
+            end
+            % Construct timeseries data
+            state_hist = timeseries(vec,time,"Name",type);
+            state_hist.TimeInfo.Units = 'seconds';
+        end
     end %public Methods
 
     

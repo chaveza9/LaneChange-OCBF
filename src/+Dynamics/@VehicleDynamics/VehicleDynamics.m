@@ -71,16 +71,11 @@ classdef VehicleDynamics < matlab.System
          function x_curr = integrate_forward(self, varargin)
             % Computes the step of a model using the predefined kinematic model
             % at dt. Uses ODE45 with the last time step
-           if nargin == 1
-<<<<<<< HEAD
+            if nargin == 1
                u_k = [-1, 0]';
-               flag = 0;
-=======
-               u_k = [0, 0]';
->>>>>>> b5fd9a389f6ba8f4d9942a19b9c3eb51c6c9d3b4
-           else
+            else
                u_k = varargin{:};
-           end
+            end
             % Make sure that the control input is of right size
             if length(u_k)<2
                 %only acceleration is provided, keep steering angle

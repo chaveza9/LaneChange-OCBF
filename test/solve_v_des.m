@@ -44,13 +44,13 @@ for k=1:N % loop over control intervals
     % Forward integration
     x_next = runge_kutta4(f, x_var(:,k), u_var(:,k), dt);
     cost = cost + 0.5*gamma_energy*runge_kutta4(c, u_var(:,k), x_var(:,k), dt);
-    cost = cost + 0.5*gamma_speed*runge_kutta4(c,(speed(:,k)-v_des_var),x_var(:,k),dt);
+    % cost = cost + 0.5*gamma_speed*runge_kutta4(c,(speed(:,k)-v_des_var),x_var(:,k),dt);
     % Impose multi-shoot constraint
     opti.subject_to(x_var(:,k+1)==x_next); % close the gaps
     % Impose Front Vehicle Safety Constraint
     x_obs_k = x_u+v_u*dt*k;
     % safety constraint
-    opti.subject_to(x_obs_k - pos(k+1)>=speed(k+1)*ReactionTime+SafetyDistance);
+    % opti.subject_to(x_obs_k - pos(k+1)>=speed(k+1)*ReactionTime+SafetyDistance);
 end
 
 % ----- Objective function ---------
@@ -63,6 +63,7 @@ curr_state = [x_C_0,v_C_0]';
 opti.subject_to(x_var(:,1) == curr_state)
 % --------- Define Terminal Condition ------
 opti.subject_to(pos(end) == xf)
+opti.subject_to(speed(end) == DesSpeed)
 % Populate Parameters
 x_obs_0 = [x_U_0,v_U_0];
 % opti.set_value(X_obs_var, x_obs_0)

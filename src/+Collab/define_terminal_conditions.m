@@ -21,7 +21,8 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         opti = casadi.Opti(); % Optimization problem
         % Constraints
         u_max = constraints.u_max;    % Vehicle i max acceleration [m/s^2]
-        u_min = constraints.u_min;   % Vehicle i min acceleration [m/s^2]
+        % u_min = constraints.u_min;   % Vehicle i min acceleration [m/s^2]
+        u_min = -3;
      
         v_max = constraints.v_max;   % Vehicle i max velocity [m/s]
         v_min = constraints.v_min;   % Vehicle i min velocity [m/s]
@@ -112,7 +113,7 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
             x_f = sol.value(x_var);
             v_f = sol.value(v_var);
             B = sol.value(B_var);
-            i_m = find(B);
+            i_m = find(B, 1);
         catch err
             warning(err.identifier,"%s", err.message)
             tf = 0;

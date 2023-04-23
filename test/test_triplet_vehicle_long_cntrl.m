@@ -16,7 +16,7 @@ min_pos = 0;
 % Maneuver constraints
 v_des = 30; %m/s
 reactionTime = 0.9;
-minSafeDistance = 15;
+minSafeDistance = 7;
 % Vehicle dimensions
 params.actors.carLen   = 4.7; % [m]
 params.actors.carWidth = 1.8; % [m]

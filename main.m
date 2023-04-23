@@ -6,7 +6,7 @@ addpath(['.',filesep,'src',filesep]);
 import casadi.*
 tic
 %% Environmental Setting
-filmVideo = 0;
+StoreResults = 1;
 TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');
 TOD = string(TOD);
 % Simulation setting
@@ -18,8 +18,8 @@ v_des_range = [25,30];
 min_pos = 0;
 % Maneuver constraints
 v_des = 30; %m/s
-reactionTime = 0.9;
-minSafeDistance = 15;
+reactionTime = 0.8;
+minSafeDistance = 7;
 % Vehicle dimensions
 params.actors.carLen   = 4.7; % [m]
 params.actors.carWidth = 1.8; % [m]
@@ -29,7 +29,7 @@ params.road.laneWidth   = 3.6; % [m]
 params.road.length = 3000; %[m]
 % Vehicle constraints
 constraints.u_max = 3.3;     % Vehicle i max acceleration
-constraints.u_min = -3;      % Vehicle i min acceleration
+constraints.u_min = -7;      % Vehicle i min acceleration
 constraints.v_max = 35;      % Vehicle i max velocity
 constraints.v_min = 10;      % Vehicle i min velocity
 %% Initial Conditions
@@ -142,7 +142,7 @@ for t = 0:dt:StopTime
     % Advance simulation
     advance(scenario);
     % If video is requested
-    if filmVideo
+    if StoreResults
         Frames(frameCount) = getframe(gcf);
         frameCount = frameCount+1;
     end
@@ -153,9 +153,13 @@ fprintf("Has Finished simulation, average step compute time: %f \n", mean(comput
 ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_env,'UniformOutput',false);
 disp(ter_pos);
 
-% Generate video
-if filmVideo
-    filename = strcat('.',filesep,'Results',filesep,'test_',TOD,'.mp4');
+% Store Files
+
+if StoreResults
+    % Create containing folder 
+    location = strcat('.',filesep,'Results',filesep,TOD);
+    status = mkdir(location);
+    filename = strcat(location,filesep,'test_',TOD,'.mp4');
     fprintf("Generating video...\n")
     writerObj = VideoWriter(filename,'MPEG-4');
     writerObj.FrameRate = round(frameCount/StopTime);
@@ -163,3 +167,10 @@ if filmVideo
     writeVideo(writerObj, Frames);
     close(writerObj);
 end
+
+% Create figures
+if ~StoreResults
+    location = [];
+end
+
+Utils.plot_state_history(cav_env, tf, i_m, location)

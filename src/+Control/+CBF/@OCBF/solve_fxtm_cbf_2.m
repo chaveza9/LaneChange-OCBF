@@ -83,11 +83,11 @@ function [status, u] = solve_fxtm_cbf_2(self, ...
     % normalizing control
     gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
     H_u = gamma_u*eye(self.n_controls);
-    H_delta_clf = 200 * eye(n_clf);
+    H_delta_clf = 2 * eye(n_clf);
     H_delta_cbf = 200 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
-    F = [zeros(1, self.n_controls), 300*ones(1,n_clf), zeros(1,n_cbf)];
+    F = [zeros(1, self.n_controls), 2*ones(1,n_clf), zeros(1,n_cbf)];
     % Define Objective
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)
