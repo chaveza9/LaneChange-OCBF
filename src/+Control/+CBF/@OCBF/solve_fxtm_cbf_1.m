@@ -1,6 +1,6 @@
         % CBF with 1 obstacle constraint
 function [status, u] = solve_fxtm_cbf_1(self, ...
-            x_ego, x_front, u_ref, t_f, v_des, x_des)
+            x_ego, x_front, u_ref, t_f, v_des, x_des, theta_des)
 
     opti = casadi.Opti(); % Optimization problem
     %% Setup optimization variables
@@ -17,15 +17,12 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
         h_des_x = 1;
     end
     % Num constraints
-    n_clf = 1+h_des_x; % Desired Speed, Desired Terminal Position
+    n_clf = 2+h_des_x; % Desired Speed, Desired Terminal Position
     n_cbf = 3; % speed constraints, Front vehicle ACC
     %% Define Relaxation variables
     slack_clf = opti.variable(n_clf,1); % control variables 
     slack_cbf = opti.variable(n_cbf,1); % control variables 
     %% Define Fixed Time constraints
-    % alpha_i = opti.variable(n_clf,2); % time constraints
-    % mu = opti.variable(n_clf,1); % tunning value
-    % opti.subject_to(slack_clf<=-0.1)
     % Compute Fixed time guarantees rates
     gamma_1 = 1 + 1/self.mu_clf;
     gamma_2 = 1 - 1/self.mu_clf;
@@ -33,18 +30,19 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     alpha = self.mu_clf*pi/(2*t_f);
     % ----------  Compute conditions CLF ----------
     % Avoid nullifying desired speed)
-    if (x_ego(2) - v_des)^2<=0.1
+    if (x_ego(3) - v_des)^2<=0.1
         v_des = v_des+0.1;
     end
     % Define Lyapunov Function
-    h_speed = @(x) (x(2) - v_des)^2;
+    h_angle = @(x) (x(4)-theta_des)^2;
+    h_speed = @(x) (x(3) - v_des)^2;
     p1 = 10;
-    h_pos = @(x) 2*(x_des-x(1))*x(2)+p1*(x(1) - x_des)^2;
+    h_pos = @(x) 2*(x_des-x(1))*x(3)*cos(4)+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
-        h_goal = {h_pos, h_speed}; 
+        h_goal = {h_pos, h_speed, h_angle}; 
     else
-        h_goal = {h_speed}; 
+        h_goal = {h_speed, h_angle}; 
     end
     % Define qp matrix
     U = [u_var;zeros(2,1)];
@@ -62,9 +60,9 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
 
     % ----------  Compute conditions CBF ---------- 
     % define barrierfunctions
-    b_v_min = @(x) (x(2)-self.velMin);
-    b_v_max = @(x) (self.velMax - x(2));
-    b_dist_ego_front = @(x) (x(3)-x(1))-self.tau*x(2)-self.delta_dist;
+    b_v_min = @(x) (x(3)-self.velMin);
+    b_v_max = @(x) (self.velMax - x(3));
+    b_dist_ego_front = @(x) (x(5)-x(1))-self.tau*x(3)-self.delta_dist;
     h_safe = {b_v_min,b_v_max, b_dist_ego_front};            
     for i =1:length(h_safe)
         % Define barrier function
@@ -77,16 +75,19 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     opti.subject_to(slack_cbf>=0.0);
     opti.subject_to(slack_cbf<=1/self.dt);
     % Add Actuation Limits
-    opti.subject_to(u_var>= self.accelMin)
-    opti.subject_to(u_var<= self.accelMax)
+    opti.subject_to(u_var(1)>= self.accelMin)
+    opti.subject_to(u_var(1)<= self.accelMax)
+    opti.subject_to(u_var(2)>= self.omegaMin)
+    opti.subject_to(u_var(2)<= self.omegaMax)
 
     % ----------  Compute  qp objective ---------- 
     z_var = [u_var; slack_clf; slack_cbf];
-    z_var(1:self.n_controls) = z_var(1:self.n_controls) - u_ref;
+    z_var(1) = z_var(1) - u_ref;
     % Create quadratic cost
     % normalizing control
     gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
-    H_u = gamma_u*eye(self.n_controls);
+    gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
+    H_u = diag([gamma_u, gamma_omega]);
     H_delta_clf = 2 * eye(n_clf);
     H_delta_cbf = 2000 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
