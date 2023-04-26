@@ -7,7 +7,7 @@ import casadi.*
 tic
 %% Environmental Setting
 % Simulation setting
-StoreResults  =1;
+StoreResults  =0;
 TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');
 TOD = string(TOD);
 StopTime = 10;
@@ -120,5 +120,7 @@ if StoreResults
     close(writerObj);
 end
 % Display the terminal position for each cav
-ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_set,'UniformOutput',false);
-disp(ter_pos);
+ter_pos = cell2mat(arrayfun(@(x) x.CurrentState.Position',...
+    cav_set,'UniformOutput',false));
+
+disp(ter_pos(:,1)-x_f );

@@ -11,7 +11,7 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     
     %% CBF-CLF Parameters
     % determine if x_des is feasible
-    if (x_ego(1)-x_des)^2<=10
+    if x_des-x_ego(1)<=5
         h_des_x = 0;
     else
         h_des_x = 1;
@@ -38,7 +38,7 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     end
     % Define Lyapunov Function
     h_speed = @(x) (x(2) - v_des)^2;
-    p1 = 10;
+    p1 = 3;
     h_pos = @(x) 2*(x_des-x(1))*x(2)+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
@@ -50,13 +50,13 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     U = [u_var;zeros(2,1)];
     for i =1:length(h_goal)
         % Compute gamma exponents
-        opti.subject_to()
+        % opti.subject_to()
         % Define lyapunov function
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
         opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
-            slack_clf(i)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
+            -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
             alpha*max(0,h_g_i(x_p))^gamma_2);                
     end
 
@@ -71,10 +71,14 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)>=0)
+        if i==3
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
+        else
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
+        end
     end
     % Add safe slacks
-    opti.subject_to(slack_cbf>=0.0);
+    opti.subject_to(slack_cbf>=0.01);
     opti.subject_to(slack_cbf<=1/self.dt);
     % Add Actuation Limits
     opti.subject_to(u_var>= self.accelMin)
@@ -87,11 +91,11 @@ function [status, u] = solve_fxtm_cbf_1(self, ...
     % normalizing control
     gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
     H_u = gamma_u*eye(self.n_controls);
-    H_delta_clf = 2 * eye(n_clf);
-    H_delta_cbf = 2000 * eye(n_cbf);
+    H_delta_clf = 2000 * eye(n_clf);
+    H_delta_cbf = 200 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
-    F = [zeros(1, self.n_controls), 2*ones(1,n_clf), zeros(1,n_cbf)];
+    F = [zeros(1, self.n_controls), 2000*ones(1,n_clf), zeros(1,n_cbf)];
     % Define Objective
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)

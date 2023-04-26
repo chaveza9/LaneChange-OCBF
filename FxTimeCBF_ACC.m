@@ -22,12 +22,16 @@ t = 0;
 dt = 0.1;
 t0 = 0;
 T  = 100;
+tfx = 10;
 end_sim = 0;
+t_end_t = 0;
 while ~end_sim
     % Append History
     x_history= cat(2,x_history,x0);
     % Compute control action
-    [u, delta_1, delta_2 ]= clf_cbf(x0);
+    time = max(tfx-t_end_t,0.01);
+    % time = tfx;
+    [u, delta_1, delta_2 ]= clf_cbf(x0, time);
     u_history= cat(2,u_history,u);
     delta_history= cat(2,delta_history,[delta_1;delta_2]);
     % Integrate forward
@@ -155,7 +159,7 @@ function x = integrate_forward(t, x_0, u)
         x = x +  xdot*dt/substeps;
     end
 end
-function [u, slack_clf, slack_cbf] = clf_cbf(x)
+function [u, slack_clf, slack_cbf] = clf_cbf(x, time)
     opti = casadi.Opti(); % Optimization problem
     %% Problem Parameters
     vd = 22; % [m/s]
@@ -178,7 +182,7 @@ function [u, slack_clf, slack_cbf] = clf_cbf(x)
     weight_slack = [weight_slack_clf, weight_slack_cbfs];
     weight_slack_linear = [0, weight_slack_clf, 0];
     % CLF params
-    T_fx = 10; %[sec]
+    T_fx = time; %[sec]
     mu = 5;
     gamma_1 = 1 + 1/mu;
     gamma_2 = 1 - 1/mu;
@@ -201,7 +205,8 @@ function [u, slack_clf, slack_cbf] = clf_cbf(x)
         alpha = mu*pi/(2*T_ud);
         % Compute clf constraints
         [Lgh_g, Lfh_g] = compute_lie_derivative_1st_order(x, h_g);
-        L = [Lgh_g(x) -h_g(x) 0];
+        % L = [Lgh_g(x) -h_g(x) 0];
+        L = [Lgh_g(x) -1 0];
         R = Lfh_g(x)+ alpha*max(0,h_g(x))^gamma_1 + ...
             alpha*max(0,h_g(x))^gamma_2;
         % Populate Constraint Matrix
@@ -230,6 +235,8 @@ function [u, slack_clf, slack_cbf] = clf_cbf(x)
         b_cbf(i) = -full(R);
         opti.subject_to(Lfh_s(x)+Lgh_s(x)*u <= -slack_cbf*h_s(x))
     end
+    opti.subject_to(slack_cbf>=0)
+    opti.subject_to(slack_cbf<=1/0.1)
     % Form CBF constraint matrix
     % opti.subject_to(A_cbf * Z <= b_cbf)
     % Add Actuation Limits
