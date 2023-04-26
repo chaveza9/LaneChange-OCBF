@@ -276,6 +276,7 @@ classdef IntelligentVehicle < handle
             % Compute u_reference function based on current state
             [~, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
                 x_k_ego, self.CurrentTime);
+            % u_ref = 0;
             % Compute remaining time from terminal time
             t_des = max(abs(self.t_f - (self.CurrentTime - self.t_0)), 0.01);
             % t_des = self.t_f;

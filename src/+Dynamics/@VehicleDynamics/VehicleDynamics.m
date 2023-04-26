@@ -51,7 +51,7 @@ classdef VehicleDynamics < matlab.System
             % Computes the step of a model using the predefined kinematic model
             % at dt. Uses ODE45 with the last time step
             if nargin == 1
-               u_k = [-0, 0]';
+               u_k = [-1, 0]';
             else
                u_k = varargin{:};
             end

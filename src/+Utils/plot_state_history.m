@@ -1,26 +1,26 @@
-function plot_state_history(veh_env, tf, i_m, save_location)
+function plot_state_history(cav_set, tf, i_m, save_location)
 arguments
-    veh_env
+    cav_set
     tf
     i_m
     save_location = []
 end
 %PLOT_STATE_HISTORY 
-num_vehicles = length(veh_env);
+num_vehicles = length(cav_set);
 %% Position History Plot
 
 f(1) = figure('Name','Position Plot', 'Position',[100 100 700 1200]);
 for i = 1:num_vehicles
     subplot(num_vehicles, 1, i)
     % Add position history
-    plot(veh_env(i).get_state_history('x'))
+    plot(cav_set(i).get_state_history('x'))
     hold on
     % Add terminal position
-    if ~ strcmp(veh_env(i).VehicleID,'u')
-        plot(tf, veh_env(i).x_f, 'Marker','x','MarkerSize',10)
+    if ~ strcmp(cav_set(i).VehicleID,'u')
+        plot(tf, cav_set(i).x_f, 'Marker','x','MarkerSize',10)
     end
     grid minor
-    ylabel(strcat("x_",veh_env(i).VehicleID, " [m]"))
+    ylabel(strcat("x_",cav_set(i).VehicleID, " [m]"))
     title('')
     if i ~=num_vehicles
         xlabel('',"HandleVisibility","off")
@@ -35,14 +35,14 @@ f(2)= figure('Name','Speed Plot', 'Position',[100 100 700 1200]);
 for i = 1:num_vehicles
     subplot(num_vehicles, 1, i)
     % Add position history
-    plot(veh_env(i).get_state_history('v'))
+    plot(cav_set(i).get_state_history('v'))
     hold on
     % Add terminal position
-    if ~ strcmp(veh_env(i).VehicleID,'u')
-        plot(tf, veh_env(i).DesSpeed, 'Marker','x','MarkerSize',10)
+    if ~ strcmp(cav_set(i).VehicleID,'u')
+        plot(tf, cav_set(i).DesSpeed, 'Marker','x','MarkerSize',10)
     end
     grid minor
-    ylabel(strcat("v_",veh_env(i).VehicleID, " [m/s]"))
+    ylabel(strcat("v_",cav_set(i).VehicleID, " [m/s]"))
     title('')
     if i ~=num_vehicles
         xlabel('',"HandleVisibility","off")
@@ -56,10 +56,10 @@ f(3) = figure('Name','Control Input Plot', 'Position',[100 100 700 1200]);
 for i = 1:num_vehicles
     subplot(num_vehicles, 1, i)
      % Add position history
-    plot(veh_env(i).get_state_history("accel"))
+    plot(cav_set(i).get_state_history("accel"))
     hold on
     grid minor
-    ylabel(strcat("u_",veh_env(i).VehicleID, " [m/s^2]"))
+    ylabel(strcat("u_",cav_set(i).VehicleID, " [m/s^2]"))
    title('')
     if i ~=num_vehicles
         xlabel('', "HandleVisibility","off")
@@ -70,10 +70,10 @@ xlabel("Time [s]")
 
 %% Triplet plots
 % Extract triplet
-cav_1 = veh_env(i_m-1);
-cav_2 = veh_env(i_m);
-cav_c = veh_env(end-1);
-veh_u = veh_env(end);
+cav_1 = cav_set(i_m-1);
+cav_2 = cav_set(i_m);
+cav_c = cav_set(end-1);
+veh_u = cav_set(end);
 
 f(4) = figure('Name','Optimal Triplet History');
 % Position subplot
