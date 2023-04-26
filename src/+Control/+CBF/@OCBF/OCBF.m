@@ -48,8 +48,18 @@ classdef OCBF < matlab.System
                     u_ref, t_f, v_des, x_des, x_adj_k, phi);
             end
             if ~status
-                [status, u] = self.solve_fxtm_cbf_1(...
-                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
+                % [status, u] = self.solve_fxtm_cbf_1(...
+                %     x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
+                try
+                    [~, u_ref_clf] = self.solve_fxtm_clf(...
+                        x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
+                catch err
+                    u_ref_clf = u_ref;
+                    warning(err.identifier,"%s", err.message)
+                end
+                [status, u] = self.solve_cbf_1(...
+                        x_ego_k, x_front_k, u_ref_clf);
+
             end
             if ~status
                 error('Solution is Unfeasible')
@@ -57,8 +67,11 @@ classdef OCBF < matlab.System
         end
         
         % Implemented outside
-        [status, u] = solve_fxtm_cbf_1(self, ...
+        [status, u] = solve_fxtm_clf(self, ...
             x_ego, x_front, u_ref, t_f, v_des, x_des)
+        [status, u] = solve_cbf_1(self, x_ego, x_front, u_ref)
+        % [status, u] = solve_fxtm_cbf_1(self, ...
+        %     x_ego, x_front, u_ref, t_f, v_des, x_des)
         [status, u] = solve_fxtm_cbf_2(self, ...
              x_ego, x_front, u_ref, t_f, v_des, x_des, x_adj_front, phi)
         %% Helper Variables
