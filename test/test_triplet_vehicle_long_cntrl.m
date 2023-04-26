@@ -7,6 +7,9 @@ import casadi.*
 tic
 %% Environmental Setting
 % Simulation setting
+StoreResults  =1;
+TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');
+TOD = string(TOD);
 StopTime = 10;
 dt = 0.1;
 % CAV set
@@ -79,13 +82,14 @@ v_f = [24.7289,21.5156,v_e_f]';
 veh_c_id = 'c';
 veh_1_id = '1';
 veh_2_id = '2';
-cav_c.define_cav_roll("cavC", tf, x_e_f, v_des,cav_set, ...
+cav_c.define_cav_roll("cav1", tf, x_e_f, v_des,cav_set, ...
     'f_collab_id',veh_1_id, 'r_collab_id',veh_2_id);
 cav_set(1).define_cav_roll("cav1", tf, x_f(1), v_des,cav_set);
-hasDefinedRoll = cav_set(2).define_cav_roll("cav2", tf, x_f(i), v_f(i),...
+hasDefinedRoll = cav_set(2).define_cav_roll("cav1", tf, x_f(i), v_f(i),...
     cav_set,'f_collab_id',veh_1_id, 'e_collab_id',veh_c_id);
 
 %% Step Through cav
+frameCount = 1;
 for t = 0:dt:tf           
     % Compute CBF
     for i=1:num_vehicles+1
@@ -98,7 +102,23 @@ for t = 0:dt:tf
     end
     % Advance simulation
     advance(scenario);
+    if StoreResults
+        Frames(frameCount) = getframe(gcf);
+        frameCount = frameCount+1;
+    end
+end
+if StoreResults
+    % Create containing folder 
+    location = strcat('.',filesep,TOD);
+    status = mkdir(location);
+    filename = strcat(location,filesep,'test_',TOD,'.mp4');
+    fprintf("Generating video...\n")
+    writerObj = VideoWriter(filename,'MPEG-4');
+    writerObj.FrameRate = round(frameCount/tf);
+    open(writerObj)
+    writeVideo(writerObj, Frames);
+    close(writerObj);
 end
 % Display the terminal position for each cav
-    ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_set,'UniformOutput',false);
+ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_set,'UniformOutput',false);
 disp(ter_pos);

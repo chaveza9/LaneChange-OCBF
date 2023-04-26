@@ -28,7 +28,7 @@ while ~end_sim
     [ts_t, xs_t] = ode45(@(t, x) dynamics(t, x, u), ...
             [t, t_end_t], x0);
     t = ts_t(end);
-    x0 = xs_t(end, :)';
+    x0 = xs_t(end, :)'+[1;1;0]*randn(1)*0.3;
     if t_end_t == t0+T
         end_sim = 1;
     end
@@ -40,27 +40,39 @@ end
 x_obst = [32.0, 25.0];
 r = [7];
 figure
-plot(x_history(1, :), x_history(2, :)); hold on;
-for i = 1:size(x_obst, 1)
-    draw_circle(x_obst(i, :), r(i));
+h = animatedline('MaximumNumPoints', length(x_history(1,:)), ...
+    'Color',"blue","LineStyle","--");
+for k=1:length(x_history(1,:))
+    addpoints(h,x_history(1, k), x_history(2, k)); hold on;%grid minor
+    for i = 1:size(x_obst, 1)
+        draw_circle(x_obst(i, :), r(i));
+    end
+    % plot(x_history(1, k), x_history(2, k),'o','MarkerFaceColor','red');
+    % hold off
+    lim_min = min(min(x_history(1, :)), min(x_history(2, :)));
+    lim_max = max(max(x_history(1, :)), max(x_history(2, :)));
+    lim_min = min([lim_min, x_obst(:, 1)'-r, x_obst(:, 2)'-r]);
+    lim_max = max([lim_max, x_obst(:, 1)'+r, x_obst(:, 2)'+r]);
+    xlim([lim_min, lim_max]);
+    ylim([lim_min, lim_max]);
+    xlabel('x [m]')
+    ylabel('y [m]')
+    drawnow 
+    axis equal
+    Frames(k) = getframe(gcf);
 end
-lim_min = min(min(x_history(1, :)), min(x_history(2, :)));
-lim_max = max(max(x_history(1, :)), max(x_history(2, :)));
-lim_min = min([lim_min, x_obst(:, 1)'-r, x_obst(:, 2)'-r]);
-lim_max = max([lim_max, x_obst(:, 1)'+r, x_obst(:, 2)'+r]);
-xlim([lim_min, lim_max]);
-ylim([lim_min, lim_max]);
-xlabel('x [m]')
-ylabel('y [m]')
-axis equal
-
+writerObj = VideoWriter('result','MPEG-4');
+writerObj.FrameRate = round(k/t_end_t);
+open(writerObj)
+writeVideo(writerObj, Frames);
+close(writerObj);
 function h = draw_circle(center,r)
     hold on
     th = 0:pi/50:2*pi;
     xunit = r * cos(th) + center(1);
     yunit = r * sin(th) + center(2);
-    h = plot(xunit, yunit);
-    hold off
+    h = plot(xunit, yunit, 'Color',"#EDB120");
+    
 end
 
 
