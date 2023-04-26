@@ -37,7 +37,7 @@ function [status, u] = solve_fxtm_clf(self, ...
     h_pos = @(x) 2*(x_des-x(1))*x(2)+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
-        h_goal = {h_pos, h_speed}; 
+        h_goal = {h_speed, h_pos}; 
     else
         h_goal = {h_speed}; 
     end
@@ -50,9 +50,14 @@ function [status, u] = solve_fxtm_clf(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
-            -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
-            alpha*max(0,h_g_i(x_p))^gamma_2);                
+        if i == 2
+            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
+                -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
+                alpha*max(0,h_g_i(x_p))^gamma_2);                
+        else
+            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
+                -h_g_i(x_p));                
+        end
     end
 
     % Add Actuation Limits
@@ -66,10 +71,10 @@ function [status, u] = solve_fxtm_clf(self, ...
     % normalizing control
     gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
     H_u = gamma_u*eye(self.n_controls);
-    H_delta_clf = 2000 * eye(n_clf);
+    H_delta_clf = 200 * eye(n_clf);
     H = blkdiag(H_u, H_delta_clf);
     % Linear Cost
-    F = [zeros(1, self.n_controls), 2000*ones(1,n_clf)];
+    F = [zeros(1, self.n_controls), 200*ones(1,n_clf)];
     % Define Objective
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)
@@ -84,7 +89,7 @@ function [status, u] = solve_fxtm_clf(self, ...
     catch err
         warning(err.identifier,"%s", err.message)
         status = false;
-        u = NaN;
+        u = u_ref;
         warning('infeasible problem detected')
         return
     end

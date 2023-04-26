@@ -42,6 +42,10 @@ classdef OCBF < matlab.System
                 collaborative, x_ego_k, x_front_k, x_adj_k, u_ref, v_des, ...
                 phi, t_f, x_des)
             status= false;
+            % Compute CLF
+            [~, u_ref_clf] = self.solve_fxtm_clf(...
+                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
+            % Compute Safety Constraints
             if collaborative
                 % Solve problem with borth obstacles
                 [status, u] = self.solve_fxtm_cbf_2(x_ego_k, x_front_k, ...
@@ -50,16 +54,8 @@ classdef OCBF < matlab.System
             if ~status
                 % [status, u] = self.solve_fxtm_cbf_1(...
                 %     x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
-                try
-                    [~, u_ref_clf] = self.solve_fxtm_clf(...
-                        x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
-                catch err
-                    u_ref_clf = u_ref;
-                    warning(err.identifier,"%s", err.message)
-                end
                 [status, u] = self.solve_cbf_1(...
                         x_ego_k, x_front_k, u_ref_clf);
-
             end
             if ~status
                 error('Solution is Unfeasible')
