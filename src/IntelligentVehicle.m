@@ -321,6 +321,7 @@ classdef IntelligentVehicle < handle
                 % CAV 1
                 case 'cavC'
                     collab = 1;
+                    v_ref = 30;
                     % Extract adj vehicle
                     adj_cav = self.find_vehicle_from_id(self.Front_cav_id);
                     Lm = adj_cav.x_f - adj_cav.x_0(1);
