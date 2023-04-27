@@ -112,7 +112,7 @@ if StoreResults
     location = strcat('.',filesep,TOD);
     status = mkdir(location);
     filename = strcat(location,filesep,'test_',TOD,'.mp4');
-    fprintf("Generating video...\n")
+    fprintfnerating video...\n")
     writerObj = VideoWriter(filename,'MPEG-4');
     writerObj.FrameRate = round(frameCount/tf);
     open(writerObj)
@@ -124,3 +124,4 @@ ter_pos = cell2mat(arrayfun(@(x) x.CurrentState.Position',...
     cav_set,'UniformOutput',false));
 
 disp(ter_pos(:,1)-x_f );
+Utils.plot_state_history(cav_set, t, 2, [])

@@ -29,7 +29,7 @@ params.road.laneWidth   = 3.6; % [m]
 params.road.length = 3000; %[m]
 % Vehicle constraints
 constraints.u_max = 3.3;     % Vehicle i max acceleration
-constraints.u_min = -4;      % Vehicle i min acceleration
+constraints.u_min = -7;      % Vehicle i min acceleration
 constraints.v_max = 35;      % Vehicle i max velocity
 constraints.v_min = 10;      % Vehicle i min velocity
 %% Initial Conditions
