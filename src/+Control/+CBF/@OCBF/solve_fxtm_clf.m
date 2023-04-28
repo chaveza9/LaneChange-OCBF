@@ -17,7 +17,7 @@ function [status, u] = solve_fxtm_clf(self, ...
         h_des_x = 1;
     end
     % Num constraints
-    n_clf = 1+h_des_x; % Desired Speed, Desired Terminal Position
+    n_clf = 2+h_des_x; % Desired Speed, Desired Terminal Position
     %% Define Relaxation variables
     slack_clf = opti.variable(n_clf,1); % control variables 
     %% Define Fixed Time constraints
@@ -32,14 +32,15 @@ function [status, u] = solve_fxtm_clf(self, ...
         v_des = v_des+0.1;
     end
     % Define Lyapunov Function
+    h_angle = @(x) (2*(x(4)-theta_des)*x(3)*tan(x(5)))/self.wheelBase+(x(4)-theta_des)^2;
     h_speed = @(x) (x(3) - v_des)^2;
     p1 = 3;
     h_pos = @(x) 2*(x_des-x(1))*x(3)*cos(x(4))+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
-        h_goal = {h_speed, h_pos}; 
+        h_goal = {h_angle, h_speed, h_pos}; 
     else
-        h_goal = {h_speed}; 
+        h_goal = {h_angle, h_speed}; 
     end
     % Define qp matrix
     U = [u_var;zeros(2,1)];
@@ -50,9 +51,14 @@ function [status, u] = solve_fxtm_clf(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
-            -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
-            alpha*max(0,h_g_i(x_p))^gamma_2);                
+        if i==1
+            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p)-slack_clf(i)<=...
+                -h_g_i(x_p));                
+        else
+            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
+                -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
+                alpha*max(0,h_g_i(x_p))^gamma_2);                
+        end
     end
     
     % Add Actuation Limits

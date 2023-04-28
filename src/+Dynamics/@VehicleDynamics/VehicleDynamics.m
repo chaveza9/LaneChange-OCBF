@@ -2,9 +2,9 @@ classdef VehicleDynamics < matlab.System
     % Vehicle Class
     %   Computes the dynamics of vehicle
     properties (SetAccess = 'protected', GetAccess = 'public')
-        x_0 (4,1) double {mustBeReal, mustBeFinite}  %[PosX PosY, Speed, theta] [m m m/s rad]
+        x_0 (5,1) double {mustBeReal, mustBeFinite}  %[PosX PosY, Speed, theta, steering] [m m m/s rad rad]
         %current state %[PosX PosY, Speed, theta] [m m m/s rad]
-        x_k  (4,1) double {mustBeReal, mustBeFinite} 
+        x_k  (5,1) double {mustBeReal, mustBeFinite} 
     end
    
     % Constant properties 
@@ -25,7 +25,7 @@ classdef VehicleDynamics < matlab.System
     % provate properties
     properties(SetAccess = 'protected', GetAccess = 'public')
         % State history
-        x_hist (4,:) double {mustBeReal, mustBeFinite} = []; %[PosX PosY, Speed, theta] [sec m m m/s m/s, rad, rad]
+        x_hist (5,:) double {mustBeReal, mustBeFinite} = []; %[PosX PosY, Speed, theta] [sec m m m/s m/s, rad, rad]
         u_hist (2,:) double {mustBeReal, mustBeFinite} = []; %[acc, omega] [sec m/s^2 rad/s]
         t_hist (1,:) double {mustBeReal, mustBeFinite} = []; %[time] [sec]
     end
@@ -125,17 +125,20 @@ classdef VehicleDynamics < matlab.System
             % compute derivatives
             x_dot = self.f(x)+self.g(x)*u;
         end
+        function x_dot = f(self, x)
+            %[x,y,v,theta,steering]
+            x_dot = [x(3) * cos(x(4)), x(3) * sin(x(4)), 0,...
+                x(3)*tan(x(5))*self.vehWheelBase, 0]';
+        end
     end
 
     methods (Static)
    
-        function x_dot = f(x)
-            x_dot = [x(3) * cos(x(4)), x(3) * sin(x(4)), 0, 0]';
-        end
-        
         function val = g(~)
             val = [zeros(2,2);
-                 eye(2)];
+                  1,0;
+                  0,0
+                  0,1];
         end
     end
     

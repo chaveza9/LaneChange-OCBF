@@ -39,7 +39,8 @@ classdef IntelligentVehicle < handle
         % Vehicle states
         CurrentState = struct('Position',[],...
                               'Velocity',[],...
-                              'Heading',[])
+                              'Heading',[], ...
+                              'Steering',[])
 
         % Vehicle roll if CAV once request has been set
         RollType (1,:) char {mustBeMember(RollType,{'none','cav1','cav2','cavC'})} = 'none';
@@ -69,6 +70,8 @@ classdef IntelligentVehicle < handle
         x_0 = NaN;
         % Desired Speed
         DesSpeed = 33;
+        % Desired Y Position 
+        DesYPos = 1.8; %[m]
         % Collaboration vehicles id
         Ego_cav_id = [];
         Front_cav_id = [];
@@ -265,7 +268,7 @@ classdef IntelligentVehicle < handle
             % ----------- Vehicle is collaborating ------------------------
             % Create initial conditions vector
             % x_k_ego = self.contruct_integrator_states(self.CurrentState);
-            x_k_ego = self.contruct_dubins_state(self.CurrentState);
+            x_k_ego = self.contruct_bicycle_state(self.CurrentState);
             % Extract leader's state (if it exists)
             [self.Leader, self.IsLeader] = self.find_leader();
             if self.IsLeader
@@ -409,7 +412,7 @@ classdef IntelligentVehicle < handle
             % Returns the timeseries datatype of state history
             arguments
                 self
-                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','ang_rate','safety'})} 
+                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','steering','ang_rate','safety'})} 
             end
             
             switch type
@@ -429,6 +432,10 @@ classdef IntelligentVehicle < handle
                     %Heading Angle
                     time = self.Dynamics.t_hist;
                     vec = self.Dynamics.x_hist(4,:);
+                case 'steering'
+                    % Steering Angle
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.Dynamics.x_hist(5,:);
                 case 'accel'
                     % Acceleration
                     time = self.Dynamics.t_hist(1:end-1);
@@ -548,21 +555,30 @@ classdef IntelligentVehicle < handle
         function state = decompose_state(states)
             state = [states.Position; ...
                     states.Velocity;...
-                    states.Heading];
+                    states.Heading;
+                    states.Steering];
         end
         function state = contruct_integrator_states(state_struct)
             state = [state_struct.Position(1); ...
                      state_struct.Velocity(1)];
         end
-        function state = contruct_dubins_state(state_struct)
+        function state = contruct_bicycle_state(state_struct)
+            if abs(state_struct.Heading)<=1e-4
+                state_struct.Heading = 0;
+            end
+            if abs(state_struct.Steering)<=1e-4
+                state_struct.Steering = 0;
+            end
             state = [state_struct.Position(1:2); ...
                      state_struct.Velocity(1);
-                     state_struct.Heading];
+                     state_struct.Heading;
+                     state_struct.Steering];
         end
         function state_struct = construct_state_structure(states)
             state_struct = struct('Position',states(1:2),...
                 'Velocity',states(3),...
-                'Heading',states(4));
+                'Heading',states(4),...
+                'Steering',states(5));
         end
         % function phi = delta_fun (x_curr, x_des, x_0,tau)
         %     phi = tau*(x_curr-x_0)/(x_des-x_0);

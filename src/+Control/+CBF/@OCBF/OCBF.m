@@ -6,16 +6,19 @@ classdef OCBF < matlab.System
         accelMin (1,1) double {mustBeReal, mustBeFinite} = -7;   % Vehicle i min acceleration
         omegaMin (1,1) double {mustBeReal, mustBeFinite} = -0.3;    % Vehicle i min angular rate
         omegaMax (1,1) double {mustBeReal, mustBeFinite} = 0.3;     % Vehicle i max angular rate
+        phiMin (1,1) double {mustBeReal, mustBeFinite} = -0.44 % Vehicle i min steering
+        phiMax (1,1) double {mustBeReal, mustBeFinite} = 0.44;     % Vehicle i max steering
         velMin (1,1) double {mustBeReal, mustBeFinite} = 13;    % Road min velocity
         velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;   % Road max velocity 
         tau = 1.2;
         dt = 0.1;
+        wheelBase (1,1) double {mustBeReal, mustBeFinite} = 5 % Vehicle wheel base Lw [m]
         delta_dist = 10;
         % Tunning Parameters
         mu_clf = 5;
         % Control variables
         n_controls = 2; %[acc, omega]
-        n_states = 4; %[pos, vel] [m, m/s]
+        n_states = 5; %[pos, vel] [m, m/s]
     end
 
     methods
@@ -74,8 +77,29 @@ classdef OCBF < matlab.System
             Lfb = casadi.Function('Lfb',{x_s},...
                       {db_dx(x_s)*self.f(x_s)});
             Lgb = casadi.Function('LgLfb',{x_s},...
-                      {db_dx(x_s)*self.g(x_s)});
+                      {db_dx(x_s)*self.g});
         end
+
+                 %% Define Control Affine Dynamics
+        function x_dot = f(self,x)
+            % [x_1 v_1 x_2 v_2]
+            x1_dot = [x(3) * cos(x(4)), x(3) * sin(x(4)), 0, ...
+                x(3)*tan(x(5))/self.wheelBase, 0]';
+            x2_dot = [x(7), 0]';
+            x3_dot = [x(9), 0]';
+            x_dot = [x1_dot;x2_dot;x3_dot];
+        end
+        function  val = g(~)
+            b1 = [zeros(2);
+                  1,0;
+                  0,0
+                  0,1];
+            b2 = [0;1];
+            b3 = [0;1];
+
+            val = blkdiag(b1,b2,b3);
+        end
+
     end
 
     methods(Access=private, Static)
@@ -103,22 +127,6 @@ classdef OCBF < matlab.System
             opts.qpsol_options.print_time = false;
         end
 
-         %% Define Control Affine Dynamics
-        function x_dot = f(x)
-            % [x_1 v_1 x_2 v_2]
-            x1_dot = [x(3) * cos(x(4)), x(3) * sin(x(4)), 0, 0]';
-            x2_dot = [x(6), 0]';
-            x3_dot = [x(8), 0]';
-            x_dot = [x1_dot;x2_dot;x3_dot];
-        end
-        function  val = g(~)
-             b1 = [zeros(2,2);
-                 eye(2)];
-            b2 = [0;1];
-            b3 = [0;1];
-
-            val = blkdiag(b1,b2,b3);
-        end
     end
     
 end
