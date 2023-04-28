@@ -1,6 +1,6 @@
         % CBF with 1 obstacle constraint
 function [status, u] = solve_fxtm_clf(self, ...
-            x_ego, x_front, u_ref, t_f, v_des, x_des)
+            x_ego, x_front, u_ref, t_f, v_des, x_des, theta_des)
 
     opti = casadi.Opti(); % Optimization problem
     %% Setup optimization variables
@@ -32,9 +32,9 @@ function [status, u] = solve_fxtm_clf(self, ...
         v_des = v_des+0.1;
     end
     % Define Lyapunov Function
-    h_speed = @(x) (x(2) - v_des)^2;
+    h_speed = @(x) (x(3) - v_des)^2;
     p1 = 3;
-    h_pos = @(x) 2*(x_des-x(1))*x(2)+p1*(x(1) - x_des)^2;
+    h_pos = @(x) 2*(x_des-x(1))*x(3)*cos(x(4))+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
         h_goal = {h_speed, h_pos}; 
@@ -50,27 +50,25 @@ function [status, u] = solve_fxtm_clf(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        if true
-            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
-                -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
-                alpha*max(0,h_g_i(x_p))^gamma_2);                
-        else
-            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
-                -slack_clf(i)*h_g_i(x_p));                
-        end
+        opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
+            -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
+            alpha*max(0,h_g_i(x_p))^gamma_2);                
     end
-
+    
     % Add Actuation Limits
     opti.subject_to(u_var>= self.accelMin)
     opti.subject_to(u_var<= self.accelMax)
+    opti.subject_to(u_var(2)>= self.omegaMin)
+    opti.subject_to(u_var(2)<= self.omegaMax)
 
     % ----------  Compute  qp objective ---------- 
     z_var = [u_var; slack_clf];
-    z_var(1:self.n_controls) = z_var(1:self.n_controls) - u_ref;
+    z_var(1:self.n_controls-1) = z_var(1:self.n_controls-1) - u_ref;
     % Create quadratic cost
     % normalizing control
     gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
-    H_u = gamma_u*eye(self.n_controls);
+    gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
+    H_u = diag([gamma_u, gamma_omega]);
     H_delta_clf = 2 * eye(n_clf);
     H = blkdiag(H_u, H_delta_clf);
     % Linear Cost
@@ -89,7 +87,7 @@ function [status, u] = solve_fxtm_clf(self, ...
     catch err
         warning(err.identifier,"%s", err.message)
         status = false;
-        u = u_ref;
+        u = [u_ref,0]';
         warning('infeasible problem detected')
         return
     end

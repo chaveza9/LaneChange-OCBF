@@ -45,6 +45,7 @@ classdef IntelligentVehicle < handle
         RollType (1,:) char {mustBeMember(RollType,{'none','cav1','cav2','cavC'})} = 'none';
         IsCollaborating logical {mustBeNumericOrLogical} =  false;
         HasAborted logical {mustBeNumericOrLogical} = false;
+        StartLatManeuver logical {mustBeNumericOrLogical} = false;
         % Driving Scenario Designer
         Scenario
         Vehicle
@@ -54,6 +55,7 @@ classdef IntelligentVehicle < handle
         % Has arrived to destination lane
         HasArrived logical {mustBeNumericOrLogical} = false;
         IntersectTime = [];
+       
     end
 
     properties
@@ -68,9 +70,9 @@ classdef IntelligentVehicle < handle
         % Desired Speed
         DesSpeed = 33;
         % Collaboration vehicles id
-        Ego_cav_id = NaN;
-        Front_cav_id = NaN;
-        Rear_cav_id = NaN;
+        Ego_cav_id = [];
+        Front_cav_id = [];
+        Rear_cav_id = [];
         cav_env= [];
     end
 
@@ -262,11 +264,12 @@ classdef IntelligentVehicle < handle
             end
             % ----------- Vehicle is collaborating ------------------------
             % Create initial conditions vector
-            x_k_ego = self.contruct_integrator_states(self.CurrentState);
+            % x_k_ego = self.contruct_integrator_states(self.CurrentState);
+            x_k_ego = self.contruct_dubins_state(self.CurrentState);
             % Extract leader's state (if it exists)
             [self.Leader, self.IsLeader] = self.find_leader();
             if self.IsLeader
-                x_k_lead = x_k_ego;
+                x_k_lead = x_k_ego([1,3]);
                 x_k_lead(1) = x_k_lead(1) + 1000;
             else
                 posU = self.Leader.Position(1);
@@ -276,11 +279,11 @@ classdef IntelligentVehicle < handle
             % Compute u_reference function based on current state
             [~, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
                 x_k_ego, self.CurrentTime);
-            % u_ref = 0;
             % Compute remaining time from terminal time
             t_des = max(abs(self.t_f - (self.CurrentTime - self.t_0)), 0.01);
             % t_des = self.t_f;
             x_des = self.x_f;
+            theta_des = 0;
             % Compute CBF control input based on reference signal    
             switch self.RollType
                 % CAV 1 is only safe with respect to vehicle in front
@@ -288,15 +291,14 @@ classdef IntelligentVehicle < handle
                     collab = 0;
                     phi = 0;
                     v_ref = 30;
-                    x_k_adj = x_k_ego*0;
+                    x_k_adj = x_k_ego([1,3])*0;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
-                        phi, t_des, x_des);
+                        phi, t_des, x_des, theta_des);
                 % CAV 1 is safe with respect to Leader vehicle (cav 1 and
                 % cav C terminal position
                 case 'cav2'
                     collab = 1;
-                    
                     % Extract adj vehicle
                     adj_cav = self.find_vehicle_from_id(self.Ego_cav_id);
                     Lm = adj_cav.x_f - adj_cav.x_0(1);
@@ -316,12 +318,11 @@ classdef IntelligentVehicle < handle
                             self.extract_states_from_id(self.Ego_cav_id));
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
-                        phi, t_des, x_des);
+                        phi, t_des, x_des, theta_des);
                 % CAV C is safe with respect to Leader vehicle (veh U) and
                 % CAV 1
                 case 'cavC'
                     collab = 1;
-                    v_ref = 30;
                     % Extract adj vehicle
                     adj_cav = self.find_vehicle_from_id(self.Front_cav_id);
                     Lm = adj_cav.x_f - adj_cav.x_0(1);
@@ -335,6 +336,7 @@ classdef IntelligentVehicle < handle
                     else
                         phi = @(x) self.ReactionTime;
                     end
+                    v_ref = 30;
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
@@ -342,7 +344,7 @@ classdef IntelligentVehicle < handle
                     % v_ref = self.DesSpeed;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
-                        phi, t_des, x_des);
+                        phi, t_des, x_des, theta_des);
                 otherwise
                     error('case not defined')
             end
@@ -358,6 +360,11 @@ classdef IntelligentVehicle < handle
             isRunning = status;
             % Update Time Step
             self.CurrentTime = self.CurrentTime + self.SampleTime;
+            % ------- Check if lateral maneuver should take place --------
+            if strcmp(self.RollType,'cavC')
+                self.StartLatManeuver = ...
+                    self.check_lateral_maneuver_conditions;
+            end
         end %step
 
 
@@ -453,7 +460,38 @@ classdef IntelligentVehicle < handle
             self.Vehicle.Position(1:2) = self.CurrentState.Position;
             self.Vehicle.Velocity(1) = self.CurrentState.Velocity;
             self.Vehicle.Yaw = self.CurrentState.Heading*180/pi;
-      end     
+        end    
+        function hasStartedLatManeuver = check_lateral_maneuver_conditions(self)
+            % check_lateral_maneuver_conditions
+            % -------------------------------------------------------------
+            % monitors the conditions for which a lateral maneuver should
+            % take place.
+            % =============================================================
+            % Sanity checks
+            assert(~self.StartLatManeuver, ...
+                'Lateral Maneuver has already been started')
+            % Make sure that ids are valid
+            assert(~isempty(self.Front_cav_id) & ...
+                ~isempty(self.Front_cav_id), 'IDs have not been defined')
+            % Extract vehicle objects
+            veh1 = self.find_vehicle_from_id(self.Front_cav_id);
+            veh2 = self.find_vehicle_from_id(self.Rear_cav_id);
+
+            %% Distance between CAV C and CAV1
+            % Longitudinal Position Condition
+            subCondition1C = (veh1.CurrentState.Position(1)- ... 
+                self.CurrentState.Position(1))>=...
+                self.CurrentState.Velocity(1)*self.ReactionTime + ...
+                self.MinSafetyDistance;
+            %% Distance between CAV 2 and CAVC
+            % Longitudinal Position Condition
+            subCondition2C = (self.CurrentState.Position(1)- ... 
+                veh2.CurrentState.Position(1))>=...
+                veh2.CurrentState.Velocity(1)*self.ReactionTime + ...
+                self.MinSafetyDistance;            
+            % Check if maneuver should start
+            hasStartedLatManeuver = subCondition1C && subCondition2C;
+        end % check_lateral_maneuver_conditions
     end % Protected Methods
     %% Setters and Getters
     methods
@@ -487,15 +525,15 @@ classdef IntelligentVehicle < handle
             cav = self.cav_env(index);
        end
 
-       function hasBeenUpdated = update_dsd_vehicle_states(obj)
+       function hasBeenUpdated = update_dsd_vehicle_states(self)
             %Updates states on dsd scenario by retrieving states from SUMO
             %and then forcing output on DSD scenario
             % -------------------------------------------------------------
             try
                 % Update states from vehicle on scenario
-                obj.Vehicle.Position(1:2) = obj.CurrentState.Position;
-                obj.Vehicle.Velocity(1) = obj.CurrentState.Velocity;
-                obj.Vehicle.Yaw = obj.CurrentState.Heading*180/pi;
+                self.Vehicle.Position(1:2) = self.CurrentState.Position;
+                self.Vehicle.Velocity(1) = self.CurrentState.Velocity;
+                self.Vehicle.Yaw = self.CurrentState.Heading*180/pi;
                 hasBeenUpdated = true;
             catch err
                 warning(err.message)
@@ -515,6 +553,11 @@ classdef IntelligentVehicle < handle
         function state = contruct_integrator_states(state_struct)
             state = [state_struct.Position(1); ...
                      state_struct.Velocity(1)];
+        end
+        function state = contruct_dubins_state(state_struct)
+            state = [state_struct.Position(1:2); ...
+                     state_struct.Velocity(1);
+                     state_struct.Heading];
         end
         function state_struct = construct_state_structure(states)
             state_struct = struct('Position',states(1:2),...

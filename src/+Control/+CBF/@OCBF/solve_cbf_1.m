@@ -18,9 +18,9 @@ function [status, u] = solve_cbf_1(self, ...
     U = [u_var;zeros(2,1)];
     % ----------  Compute conditions CBF ---------- 
     % define barrierfunctions
-    b_v_min = @(x) (x(2)-self.velMin);
-    b_v_max = @(x) (self.velMax - x(2));
-    b_dist_ego_front = @(x) (x(3)-x(1))-self.tau*x(2)-self.delta_dist;
+    b_v_min = @(x) (x(3)-self.velMin);
+    b_v_max = @(x) (self.velMax - x(3));
+    b_dist_ego_front = @(x) (x(5)-x(1))-self.tau*x(3)-self.delta_dist;
     h_safe = {b_v_min,b_v_max, b_dist_ego_front};            
     for i =1:length(h_safe)
         % Define barrier function
@@ -39,14 +39,17 @@ function [status, u] = solve_cbf_1(self, ...
     % Add Actuation Limits
     opti.subject_to(u_var>= self.accelMin)
     opti.subject_to(u_var<= self.accelMax)
+    opti.subject_to(u_var(2)>= self.omegaMin)
+    opti.subject_to(u_var(2)<= self.omegaMax)
 
     % ----------  Compute  qp objective ---------- 
     z_var = [u_var; slack_cbf];
     z_var(1:self.n_controls) = z_var(1:self.n_controls) - u_ref;
     % Create quadratic cost
     % normalizing control
-    gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
-    H_u = gamma_u*eye(self.n_controls);
+    gamma_u = 1/max((self.accelMax-u_ref(1))^2,(self.accelMin-u_ref(1))^2);
+    gamma_omega = 1/max((self.omegaMax-u_ref(2))^2,(self.omegaMin-u_ref(2))^2);
+    H_u = diag([gamma_u, gamma_omega]);
     H_delta_cbf = 200 * eye(n_cbf);
     H = blkdiag(H_u, H_delta_cbf);
     % Linear Cost
