@@ -28,7 +28,7 @@ function [status, u] = solve_fxtm_clf(self, ...
     alpha = self.mu_clf*pi/(2*t_f);
     % ----------  Compute conditions CLF ----------
     % Avoid nullifying desired speed)
-    if (x_ego(2) - v_des)^2<=0.1
+    if (x_ego(3) - v_des)^2<=0.1
         v_des = v_des+0.1;
     end
     % Define Lyapunov Function

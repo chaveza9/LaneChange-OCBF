@@ -116,8 +116,6 @@ classdef IntelligentVehicle < handle
             % _________Initialize Vehicle Model ________________
             self.CurrentState = InitialConditions;
             initStates = self.decompose_state(self.CurrentState);
-            self.Dynamics = Dynamics.VehicleDynamics(initStates,...
-                'dt',self.SampleTime, 't_k', self.CurrentTime);
             % Select mesh depending on class ID
             if Options.VehicleClass == 2
                 carMesh = driving.scenario.truckMesh;
@@ -147,6 +145,10 @@ classdef IntelligentVehicle < handle
             else
                 self.Vehicle.PlotColor = 'black';
             end
+            % _________Initialize Dynamics_______________
+            self.Dynamics = Dynamics.VehicleDynamics(initStates,...
+                'dt',self.SampleTime, 't_k', self.CurrentTime,...
+                'vehWheelBase',self.Vehicle.Wheelbase);
             % _________Initialize OCP and CBF models_______________
             self.ocp_prob = Control.OCP.CollabAccel(...
                 'accelMax', self.AccelMax, ...

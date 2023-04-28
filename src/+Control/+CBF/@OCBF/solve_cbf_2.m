@@ -7,7 +7,7 @@ function [status, u] = solve_cbf_2(self, ...
     % Optimization Variables
     u_var = opti.variable(self.n_controls,1); % control variables [u_ego, u_obst]
     % State Variables
-    x_p = [x_ego([1,3]); x_front; x_adj_front]; % state variables [x_ego, v_ego, x_obst, v_obst]
+    x_p = [x_ego; x_front; x_adj_front]; % state variables [x_ego, v_ego, x_obst, v_obst]
     
     %% CBF-CLF Parameters
     % Num constraints

@@ -37,6 +37,7 @@ constraints.v_min = 10;      % Vehicle i min velocity
 states.Position = [0,params.road.laneWidth*0.5]';
 states.Velocity = 0;
 states.Heading = 0;
+states.Steering = 0;
 states_cav = repelem(states, num_vehicles);
 % Vehicle U initial States;
 states_u = states;
