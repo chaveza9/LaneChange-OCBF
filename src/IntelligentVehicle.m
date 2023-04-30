@@ -39,8 +39,7 @@ classdef IntelligentVehicle < handle
         % Vehicle states
         CurrentState = struct('Position',[],...
                               'Velocity',[],...
-                              'Heading',[], ...
-                              'Steering',[])
+                              'Heading',[])
 
         % Vehicle roll if CAV once request has been set
         RollType (1,:) char {mustBeMember(RollType,{'none','cav1','cav2','cavC'})} = 'none';
@@ -289,13 +288,14 @@ classdef IntelligentVehicle < handle
             % t_des = self.t_f;
             x_des = self.x_f;
             theta_des = 0;
+            % u_ref=  0;
             % Compute CBF control input based on reference signal    
             switch self.RollType
                 % CAV 1 is only safe with respect to vehicle in front
                 case 'cav1'
                     collab = 0;
                     phi = 0;
-                    v_ref = 30;
+                    % v_ref = self.DesSpeed;
                     x_k_adj = x_k_ego([1,3])*0;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
@@ -341,12 +341,14 @@ classdef IntelligentVehicle < handle
                     else
                         phi = @(x) self.ReactionTime;
                     end
-                    v_ref = 30;
                     % Extract cav c (adj_vehicle)
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
-                    % u_ref = 0;
-                    % v_ref = self.DesSpeed;
+                    % Compute desired y Position
+                    if ~self.StartLatManeuver
+                        theta_des = -theta_des;
+                    end
+                    
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
                         phi, t_des, x_des, theta_des);
@@ -414,7 +416,7 @@ classdef IntelligentVehicle < handle
             % Returns the timeseries datatype of state history
             arguments
                 self
-                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','steering','ang_rate','safety'})} 
+                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','ang_rate','safety'})} 
             end
             
             switch type
@@ -434,10 +436,6 @@ classdef IntelligentVehicle < handle
                     %Heading Angle
                     time = self.Dynamics.t_hist;
                     vec = self.Dynamics.x_hist(4,:);
-                case 'steering'
-                    % Steering Angle
-                    time = self.Dynamics.t_hist(1:end-1);
-                    vec = self.Dynamics.x_hist(5,:);
                 case 'accel'
                     % Acceleration
                     time = self.Dynamics.t_hist(1:end-1);
@@ -477,8 +475,8 @@ classdef IntelligentVehicle < handle
             % take place.
             % =============================================================
             % Sanity checks
-            assert(~self.StartLatManeuver, ...
-                'Lateral Maneuver has already been started')
+            % assert(~self.StartLatManeuver, ...
+            %     'Lateral Maneuver has already been started')
             % Make sure that ids are valid
             assert(~isempty(self.Front_cav_id) & ...
                 ~isempty(self.Front_cav_id), 'IDs have not been defined')
@@ -557,8 +555,7 @@ classdef IntelligentVehicle < handle
         function state = decompose_state(states)
             state = [states.Position; ...
                     states.Velocity;...
-                    states.Heading;
-                    states.Steering];
+                    states.Heading];
         end
         function state = contruct_integrator_states(state_struct)
             state = [state_struct.Position(1); ...
@@ -568,19 +565,14 @@ classdef IntelligentVehicle < handle
             if abs(state_struct.Heading)<=1e-4
                 state_struct.Heading = 0;
             end
-            if abs(state_struct.Steering)<=1e-4
-                state_struct.Steering = 0;
-            end
             state = [state_struct.Position(1:2); ...
                      state_struct.Velocity(1);
-                     state_struct.Heading;
-                     state_struct.Steering];
+                     state_struct.Heading];
         end
         function state_struct = construct_state_structure(states)
             state_struct = struct('Position',states(1:2),...
                 'Velocity',states(3),...
-                'Heading',states(4),...
-                'Steering',states(5));
+                'Heading',states(4));
         end
         % function phi = delta_fun (x_curr, x_des, x_0,tau)
         %     phi = tau*(x_curr-x_0)/(x_des-x_0);

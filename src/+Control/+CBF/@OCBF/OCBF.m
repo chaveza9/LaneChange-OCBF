@@ -18,7 +18,7 @@ classdef OCBF < matlab.System
         mu_clf = 5;
         % Control variables
         n_controls = 2; %[acc, omega]
-        n_states = 5; %[pos, vel] [m, m/s]
+        n_states = 4; %[pos, vel] [m, m/s]
     end
 
     methods
@@ -37,19 +37,26 @@ classdef OCBF < matlab.System
                 phi, t_f, x_des, theta_des)
             status= false;
             % Compute CLF
-            [~, u_ref_clf] = self.solve_fxtm_clf(...
-                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, theta_des);
+            % [~, u_ref_clf] = self.solve_fxtm_clf(...
+            %         x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, theta_des);
             % Compute Safety Constraints
             if collaborative
-                % Solve problem with borth obstacles
-                [status, u] = self.solve_cbf_2(x_ego_k, x_front_k, ...
+                % Solve problem with both obstacles
+                [status, u] = self.solve_fxtm_clbf_2(...
+                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des,...
+                    x_adj_k, phi, theta_des);
+                if ~status
+                    [status, u] = self.solve_cbf_2(x_ego_k, x_front_k, ...
                     u_ref_clf, x_adj_k, phi);
+                end
             end
             if ~status
-                % [status, u] = self.solve_fxtm_cbf_1(...
-                %     x_ego_k, x_front_k, u_ref, t_f, v_des, x_des);
-                [status, u] = self.solve_cbf_1(...
-                        x_ego_k, x_front_k, u_ref_clf);
+                [status, u] = self.solve_fxtm_clbf_1(x_ego_k, x_front_k,...
+                    u_ref, t_f, v_des, x_des, theta_des);
+                if ~status
+                    [status, u] = self.solve_cbf_1(...
+                            x_ego_k, x_front_k, u_ref_clf);
+                end
             end
             if ~status
                 error('Solution is Unfeasible')
@@ -57,11 +64,20 @@ classdef OCBF < matlab.System
         end
         
         % Implemented outside
+        % CLF
         [status, u] = solve_fxtm_clf(self, ...
             x_ego, x_front, u_ref, t_f, v_des, x_des, theta_des)
+        % CBF
         [status, u] = solve_cbf_1(self, x_ego, x_front, u_ref)
         [status, u] = solve_cbf_2(self, x_ego, x_front, u_ref,...
             x_adj_front, phi)
+        % CLBF
+        [status, u] = solve_fxtm_clbf_2(self, ...
+            x_ego, x_front, u_ref, t_f, v_des, x_des,...
+            x_adj_front, phi, theta_des)
+        [status, u] = solve_fxtm_clbf_1(self, ...
+            x_ego, x_front, u_ref, t_f, v_des, ...
+            x_des, theta_des)
         %% Helper Variables
         function [Lgb, Lfb] = compute_lie_derivative_1st_order(self, ...
                 barrier_fun)
@@ -77,27 +93,27 @@ classdef OCBF < matlab.System
             Lfb = casadi.Function('Lfb',{x_s},...
                       {db_dx(x_s)*self.f(x_s)});
             Lgb = casadi.Function('LgLfb',{x_s},...
-                      {db_dx(x_s)*self.g});
+                      {db_dx(x_s)*self.g(x_s)});
         end
 
                  %% Define Control Affine Dynamics
-        function x_dot = f(self,x)
+        function x_dot = f(~,x)
             % [x_1 v_1 x_2 v_2]
-            x1_dot = [x(3) * cos(x(4)), x(3) * sin(x(4)), 0, ...
-                x(3)*tan(x(5))/self.wheelBase, 0]';
-            x2_dot = [x(7), 0]';
-            x3_dot = [x(9), 0]';
+            x1_dot =[x(3) * cos(x(4)), x(3) * sin(x(4)), 0, 0]';
+            x2_dot = [x(6), 0]';
+            x3_dot = [x(8), 0]';
             x_dot = [x1_dot;x2_dot;x3_dot];
         end
-        function  val = g(~)
-            b1 = [zeros(2);
-                  1,0;
-                  0,0
-                  0,1];
+        function  val = g(self, x)
+            b1 = [0 , -x(3)*sin(x(4));
+                  0  ,  x(3)*cos(x(4));
+                  1  ,  0;
+                  0  ,  x(3)/self.wheelBase];
             b2 = [0;1];
             b3 = [0;1];
-
+            
             val = blkdiag(b1,b2,b3);
+
         end
 
     end

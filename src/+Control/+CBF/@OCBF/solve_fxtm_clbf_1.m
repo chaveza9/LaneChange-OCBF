@@ -1,5 +1,5 @@
         % CBF with 1 obstacle constraint
-function [status, u] = solve_fxtm_clf(self, ...
+function [status, u] = solve_fxtm_clbf_1(self, ...
             x_ego, x_front, u_ref, t_f, v_des, x_des, theta_des)
 
     opti = casadi.Opti(); % Optimization problem
@@ -18,8 +18,10 @@ function [status, u] = solve_fxtm_clf(self, ...
     end
     % Num constraints
     n_clf = 2+h_des_x; % Desired Speed, Desired Terminal Position
+    n_cbf = 3; % speed constraints, Front vehicle ACC
     %% Define Relaxation variables
     slack_clf = opti.variable(n_clf,1); % control variables 
+    slack_cbf = opti.variable(n_cbf,1); % control variables 
     %% Define Fixed Time constraints
     % Compute Fixed time guarantees rates
     gamma_1 = 1 + 1/self.mu_clf;
@@ -60,7 +62,27 @@ function [status, u] = solve_fxtm_clf(self, ...
                 alpha*max(0,h_g_i(x_p))^gamma_2);                
         end
     end
-    
+
+     % ----------  Compute conditions CBF ---------- 
+    % define barrierfunctions
+    b_v_min = @(x) (x(3)-self.velMin);
+    b_v_max = @(x) (self.velMax - x(3));
+    b_dist_ego_front = @(x) (x(5)-x(1))-self.tau*x(3)-self.delta_dist;
+    h_safe = {b_v_min,b_v_max, b_dist_ego_front};            
+    for i =1:length(h_safe)
+        % Define barrier function
+        h_s_i = h_safe{i};
+        % Compute CBF constraints
+        [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
+        if true || i==3
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
+        else
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
+        end
+    end
+    % Add safe slacks
+    opti.subject_to(slack_cbf>=0.01);
+    opti.subject_to(slack_cbf<=1/self.dt);
     % Add Actuation Limits
     opti.subject_to(u_var(1)>= self.accelMin)
     opti.subject_to(u_var(1)<= self.accelMax)
@@ -68,7 +90,7 @@ function [status, u] = solve_fxtm_clf(self, ...
     opti.subject_to(u_var(2)<= self.omegaMax)
 
     % ----------  Compute  qp objective ---------- 
-    z_var = [u_var; slack_clf];
+    z_var = [u_var; slack_clf; slack_cbf];
     z_var(1:self.n_controls-1) = z_var(1:self.n_controls-1) - u_ref;
     % Create quadratic cost
     % normalizing control
@@ -77,20 +99,20 @@ function [status, u] = solve_fxtm_clf(self, ...
     H_u = diag([gamma_u, gamma_omega]);
     if ~h_des_x
         H_delta_clf = diag([10,100]);
-        F_slack = [0, 0];
+        F_slack_clf = [0, 0];
     else
         H_delta_clf = diag([10,100,400]);
-        F_slack = [0, 0, 1000];
+        F_slack_clf = [0, 0, 1000];
     end
-    H = blkdiag(H_u, H_delta_clf);
-    
+    H_delta_cbf = diag([10,10,10]);
+    H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
     % Linear Cost
-    F = [zeros(1, self.n_controls), F_slack];
+    F = [zeros(1, self.n_controls), F_slack_clf, zeros(1,n_cbf)];
     % Define Objective
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)
     % ----------  Create solver and solve! ---------- 
-    opts = self.define_solver_options;
+    % opts = self.define_solver_options;
     % opti.solver('sqpmethod',opts)
     opti.solver('ipopt',struct('print_time',0,'ipopt',...
     struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',1,...

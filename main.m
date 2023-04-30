@@ -17,7 +17,7 @@ num_vehicles = 5; % number of vehicles in fast lane
 v_des_range = [25,30];
 min_pos = 0;
 % Maneuver constraints
-v_des = 30; %m/s
+v_des = 34; %m/s
 reactionTime = 0.8;
 minSafeDistance = 7;
 % Vehicle dimensions
@@ -105,7 +105,7 @@ veh_c_id = 'c';
 veh_1_id = num2str(i_m-1);
 veh_2_id = num2str(i_m);
 % cav c
-hasDefinedRoll = cav_c.define_cav_roll("cav1", tf, x_e_f, v_des,...
+hasDefinedRoll = cav_c.define_cav_roll("cavC", tf, x_e_f, v_des,...
     cav_env, 'f_collab_id',veh_1_id, 'r_collab_id',veh_2_id);
 for i=1:num_vehicles
 
@@ -151,8 +151,9 @@ for t = 0:dt:StopTime
 end
 fprintf("Has Finished simulation, average step compute time: %f \n", mean(compute_time))
 % Display the terminal position for each cav
-ter_pos = arrayfun(@(x) x.CurrentState.Position',cav_env,'UniformOutput',false);
-disp(ter_pos);
+ter_pos = cell2mat(arrayfun(@(x) x.CurrentState.Position', ...
+    cav_env,'UniformOutput',false));
+disp(ter_pos(:,1)-[x_f;x_e_f;0] );
 
 % Store Files
 

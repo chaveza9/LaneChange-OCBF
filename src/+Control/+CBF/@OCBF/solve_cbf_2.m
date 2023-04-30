@@ -11,7 +11,7 @@ function [status, u] = solve_cbf_2(self, ...
     
     %% CBF-CLF Parameters
     % Num constraints
-    n_cbf = 6; % speed constraints, Front vehicle ACC, adjacent veh ACC
+    n_cbf = 4; % speed constraints, Front vehicle ACC, adjacent veh ACC
     %% Define Relaxation variables
     slack_cbf = opti.variable(n_cbf,1); % control variables 
     % Define qp matrix
@@ -20,18 +20,16 @@ function [status, u] = solve_cbf_2(self, ...
     % define barrierfunctions
     b_v_min = @(x) (x(3)-self.velMin);
     b_v_max = @(x) (self.velMax - x(3));
-    b_phi_min = @(x) (x(5)-self.phiMin);
-    b_phi_max = @(x) (self.phiMax - x(5));
-    b_dist_ego_front = @(x) (x(6)-x(1))-self.tau*x(3)-self.delta_dist;
-    b_dist_ego_adj = @(x) (x(8)-x(1))-phi(x)*x(3) -self.delta_dist;
-    h_safe = {b_v_min,b_v_max, b_phi_min, b_phi_max, ...
+    b_dist_ego_front = @(x) (x(5)-x(1))-self.tau*x(3)-self.delta_dist;
+    b_dist_ego_adj = @(x) (x(7)-x(1))-phi(x)*x(3) -self.delta_dist;
+    h_safe = {b_v_min,b_v_max, ...
         b_dist_ego_front, b_dist_ego_adj};            
     for i =1:length(h_safe)
         % Define barrier function
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        if i>=5
+        if i>=3
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
         else
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
@@ -43,8 +41,8 @@ function [status, u] = solve_cbf_2(self, ...
     opti.subject_to(slack_cbf(i)<=1/self.dt);
     
     % Add Actuation Limits
-    opti.subject_to(u_var>= self.accelMin)
-    opti.subject_to(u_var<= self.accelMax)
+    opti.subject_to(u_var(1)>= self.accelMin)
+    opti.subject_to(u_var(1)<= self.accelMax)
     opti.subject_to(u_var(2)>= self.omegaMin)
     opti.subject_to(u_var(2)<= self.omegaMax)
 
@@ -56,7 +54,7 @@ function [status, u] = solve_cbf_2(self, ...
     gamma_u = 1/max((self.accelMax-u_ref(1))^2,(self.accelMin-u_ref(1))^2);
     gamma_omega = 1/max((self.omegaMax-u_ref(2))^2,(self.omegaMin-u_ref(2))^2);
     H_u = diag([gamma_u, gamma_omega]);
-    H_delta_cbf = 200 * eye(n_cbf);
+    H_delta_cbf = diag([10,10,10,10]);
     H = blkdiag(H_u, H_delta_cbf);
     % Linear Cost
     F = [zeros(1, self.n_controls), zeros(1,n_cbf)];

@@ -29,7 +29,7 @@ params.road.laneWidth   = 3.6; % [m]
 params.road.length = 3000; %[m]
 % Vehicle constraints
 constraints.u_max = 3.3;     % Vehicle i max acceleration
-constraints.u_min = -3;      % Vehicle i min acceleration
+constraints.u_min = -7;      % Vehicle i min acceleration
 constraints.v_max = 35;      % Vehicle i max velocity
 constraints.v_min = 10;      % Vehicle i min velocity
 %% Initial Conditions
@@ -83,10 +83,10 @@ v_f = [24.7289,21.5156,v_e_f]';
 veh_c_id = 'c';
 veh_1_id = '1';
 veh_2_id = '2';
-cav_c.define_cav_roll("cav1", tf, x_e_f, v_des,cav_set, ...
+cav_c.define_cav_roll("cavC", tf, x_e_f, v_des,cav_set, ...
     'f_collab_id',veh_1_id, 'r_collab_id',veh_2_id);
 cav_set(1).define_cav_roll("cav1", tf, x_f(1), v_des,cav_set);
-hasDefinedRoll = cav_set(2).define_cav_roll("cav1", tf, x_f(i), v_f(i),...
+hasDefinedRoll = cav_set(2).define_cav_roll("cav2", tf, x_f(i), v_f(i),...
     cav_set,'f_collab_id',veh_1_id, 'e_collab_id',veh_c_id);
 
 %% Step Through cav
