@@ -295,7 +295,7 @@ classdef IntelligentVehicle < handle
                 case 'cav1'
                     collab = 0;
                     phi = 0;
-                    % v_ref = self.DesSpeed;
+                    v_ref = self.DesSpeed;
                     x_k_adj = x_k_ego([1,3])*0;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...

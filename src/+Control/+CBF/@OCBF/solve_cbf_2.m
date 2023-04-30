@@ -52,7 +52,7 @@ function [status, u] = solve_cbf_2(self, ...
     % Create quadratic cost
     % normalizing control
     gamma_u = 1/max((self.accelMax-u_ref(1))^2,(self.accelMin-u_ref(1))^2);
-    gamma_omega = 1/max((self.omegaMax-u_ref(2))^2,(self.omegaMin-u_ref(2))^2);
+    gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
     H_u = diag([gamma_u, gamma_omega]);
     H_delta_cbf = diag([10,10,10,10]);
     H = blkdiag(H_u, H_delta_cbf);

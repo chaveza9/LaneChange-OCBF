@@ -11,7 +11,7 @@ function [status, u] = solve_fxtm_clbf_1(self, ...
     
     %% CBF-CLF Parameters
     % determine if x_des is feasible
-    if x_des-x_ego(1)<=5
+    if x_des-x_ego(1)<=2
         h_des_x = 0;
     else
         h_des_x = 1;
@@ -53,7 +53,7 @@ function [status, u] = solve_fxtm_clbf_1(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        if i<=2
+        if i<=1
             opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p)-slack_clf(i)<=...
                 -h_g_i(x_p));                
         else
@@ -74,15 +74,15 @@ function [status, u] = solve_fxtm_clbf_1(self, ...
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        if true || i==3
-            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
+        if false %|| i==3
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)>=0)
         else
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
         end
     end
     % Add safe slacks
-    opti.subject_to(slack_cbf>=0.01);
-    opti.subject_to(slack_cbf<=1/self.dt);
+    % opti.subject_to(slack_cbf>=0.01);
+    % opti.subject_to(slack_cbf<=1/self.dt);
     % Add Actuation Limits
     opti.subject_to(u_var(1)>= self.accelMin)
     opti.subject_to(u_var(1)<= self.accelMax)
@@ -98,11 +98,11 @@ function [status, u] = solve_fxtm_clbf_1(self, ...
     gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
     H_u = diag([gamma_u, gamma_omega]);
     if ~h_des_x
-        H_delta_clf = diag([10,100]);
+        H_delta_clf = diag([10,10]);
         F_slack_clf = [0, 0];
     else
-        H_delta_clf = diag([10,100,400]);
-        F_slack_clf = [0, 0, 1000];
+        H_delta_clf = diag([10,10,10]);
+        F_slack_clf = [0, 1000, 1000];
     end
     H_delta_cbf = diag([10,10,10]);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);

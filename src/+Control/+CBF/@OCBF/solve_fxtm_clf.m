@@ -51,7 +51,7 @@ function [status, u] = solve_fxtm_clf(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        if i<=2
+        if i<=1
             opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p)-slack_clf(i)<=...
                 -h_g_i(x_p));                
         else
@@ -76,11 +76,11 @@ function [status, u] = solve_fxtm_clf(self, ...
     gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
     H_u = diag([gamma_u, gamma_omega]);
     if ~h_des_x
-        H_delta_clf = diag([10,100]);
-        F_slack = [0, 0];
+        H_delta_clf = diag([10,10]);
+        F_slack = [0, 1000];
     else
-        H_delta_clf = diag([10,100,400]);
-        F_slack = [0, 0, 1000];
+        H_delta_clf = diag([10,10,10]);
+        F_slack = [0, 1000, 1000];
     end
     H = blkdiag(H_u, H_delta_clf);
     

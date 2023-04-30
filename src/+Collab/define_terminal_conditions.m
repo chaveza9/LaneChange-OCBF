@@ -22,16 +22,16 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         % Constraints
         u_max = constraints.u_max;    % Vehicle i max acceleration [m/s^2]
         % u_min = constraints.u_min;   % Vehicle i min acceleration [m/s^2]
-        u_min = -3;
+        u_min = -1;
      
         v_max = constraints.v_max;   % Vehicle i max velocity [m/s]
         v_min = constraints.v_min;   % Vehicle i min velocity [m/s]
 
-        T_max = 25;     % maximum allowable time
+        T_max = 15;     % maximum allowable time
         t_avg = 8;      % Average time
         % Tunning Constants
         gamma_t = 1/T_max;
-        gamma = 0.5;
+        gamma = 0.1;
         % Compute problem paramters
         numCandidates = size(x_0,1);
         M = 1000;
@@ -51,12 +51,12 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         
         %% Define cost
         % Time cost
-        cost = gamma_t*tf_var;
+        cost = 0;
         % Disruption cost
         % CAV C
         [gamma_x, gamma_v] = compute_disruption_norm_cons(...
             gamma, v_max, v_min, v_C_0, v_d, t_avg);
-        cost = cost + compute_disruption(gamma_x, gamma_v,...
+        cost = cost + 0*compute_disruption(gamma_x, gamma_v,...
             x_C_0, v_C_0, x_ego_var, v_ego_var, tf_var);
         % CAVs
         for k=1:numCandidates
@@ -65,6 +65,7 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
             cost = cost + compute_disruption(gamma_x, gamma_v,...
                 x_0(k,1), v_0(k,1), x_var(k,1), v_var(k,1), tf_var);
         end
+        cost = gamma_t*tf_var + cost/numCandidates;
         opti.minimize(cost);
         
         %% Define Safety Conditions

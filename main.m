@@ -108,7 +108,6 @@ veh_2_id = num2str(i_m);
 hasDefinedRoll = cav_c.define_cav_roll("cavC", tf, x_e_f, v_des,...
     cav_env, 'f_collab_id',veh_1_id, 'r_collab_id',veh_2_id);
 for i=1:num_vehicles
-
     if i ~= i_m % Accelerating Vehicles
         hasDefinedRoll = cav_set(i).define_cav_roll("cav1", tf, ...
             x_f(i), v_f(i), cav_env);

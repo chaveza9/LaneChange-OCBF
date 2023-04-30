@@ -19,6 +19,7 @@ classdef OCBF < matlab.System
         % Control variables
         n_controls = 2; %[acc, omega]
         n_states = 4; %[pos, vel] [m, m/s]
+        split = true
     end
 
     methods
@@ -36,28 +37,34 @@ classdef OCBF < matlab.System
                 collaborative, x_ego_k, x_front_k, x_adj_k, u_ref, v_des, ...
                 phi, t_f, x_des, theta_des)
             status= false;
-            % Compute CLF
-            % [~, u_ref_clf] = self.solve_fxtm_clf(...
-            %         x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, theta_des);
-            % Compute Safety Constraints
-            if collaborative
-                % Solve problem with both obstacles
-                [status, u] = self.solve_fxtm_clbf_2(...
-                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des,...
-                    x_adj_k, phi, theta_des);
-                if ~status
+            
+            if self.split
+                % Compute CLF
+                [~, u_ref_clf] = self.solve_fxtm_clf(...
+                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, theta_des);
+                if collaborative
+                    % Solve problem with both obstacles
                     [status, u] = self.solve_cbf_2(x_ego_k, x_front_k, ...
-                    u_ref_clf, x_adj_k, phi);
+                        u_ref_clf, x_adj_k, phi);
                 end
-            end
-            if ~status
-                [status, u] = self.solve_fxtm_clbf_1(x_ego_k, x_front_k,...
-                    u_ref, t_f, v_des, x_des, theta_des);
                 if ~status
-                    [status, u] = self.solve_cbf_1(...
+                     [status, u] = self.solve_cbf_1(...
                             x_ego_k, x_front_k, u_ref_clf);
                 end
+            else
+                % Compute Safety Constraints
+                if collaborative
+                    % Solve problem with both obstacles
+                    [status, u] = self.solve_fxtm_clbf_2(...
+                        x_ego_k, x_front_k, u_ref, t_f, v_des, x_des,...
+                        x_adj_k, phi, theta_des);
+                end
+                if ~status
+                    [status, u] = self.solve_fxtm_clbf_1(x_ego_k, x_front_k,...
+                        u_ref, t_f, v_des, x_des, theta_des);
+                end
             end
+            % Check if solution is valid
             if ~status
                 error('Solution is Unfeasible')
             end

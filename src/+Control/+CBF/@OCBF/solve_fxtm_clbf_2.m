@@ -73,7 +73,7 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        if i>=3
+        if false || i>=3
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
         else
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
@@ -102,8 +102,8 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
         H_delta_clf = diag([10,100]);
         F_slack_clf = [0, 0];
     else
-        H_delta_clf = diag([10,100,400]);
-        F_slack_clf = [0, 0, 1000];
+        H_delta_clf = diag([10,10,10]);
+        F_slack_clf = [0, 1000, 1000];
     end
     H_delta_cbf = diag([10,10,10,10]);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);
