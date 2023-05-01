@@ -127,7 +127,7 @@ fprintf("Stepping though...\n")
 compute_time = [];
 frameCount = 1;
 StopTime = tf;
-for t = 0:dt:StopTime           
+for t = 0:dt:StopTime+2        
     % Compute CBF
     tic
     for i=1:num_vehicles+2

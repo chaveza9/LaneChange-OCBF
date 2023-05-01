@@ -91,7 +91,7 @@ hasDefinedRoll = cav_set(2).define_cav_roll("cav2", tf, x_f(i), v_f(i),...
 
 %% Step Through cav
 frameCount = 1;
-for t = 0:dt:tf           
+for t = 0:dt:tf+2          
     % Compute CBF
     for i=1:num_vehicles+1
         status = cav_set(i).step;

@@ -51,7 +51,7 @@ classdef VehicleDynamics < matlab.System
             % Computes the step of a model using the predefined kinematic model
             % at dt. Uses ODE45 with the last time step
             if nargin == 1
-               u_k = [0, 0]';
+               u_k = [-0, 0]';
             else
                u_k = varargin{:};
             end
@@ -123,6 +123,7 @@ classdef VehicleDynamics < matlab.System
         end
         function x_dot = dynamics(self, ~, x, u)
             % compute derivatives
+            u(2) = sin(u(2));
             x_dot = self.f(x)+self.g(x)*u;
         end
         function x_dot = f(~, x)

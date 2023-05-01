@@ -1,6 +1,6 @@
         % CBF with 1 obstacle constraint
 function [status, u] = solve_fxtm_clf(self, ...
-            x_ego, x_front, u_ref, t_f, v_des, x_des, theta_des)
+            x_ego, x_front, u_ref, t_f, v_des, x_des, y_des, flag)
 
     opti = casadi.Opti(); % Optimization problem
     %% Setup optimization variables
@@ -11,13 +11,15 @@ function [status, u] = solve_fxtm_clf(self, ...
     
     %% CBF-CLF Parameters
     % determine if x_des is feasible
-    if x_des-x_ego(1)<=5
+    if x_des-x_ego(1)<=0.5 || flag
         h_des_x = 0;
+        x_des = x_des+10;
     else
         h_des_x = 1;
     end
+    
     % Num constraints
-    n_clf = 2+h_des_x; % Desired Speed, Desired Terminal Position
+    n_clf = 3+h_des_x; % Desired Speed, Desired Terminal Position
     %% Define Relaxation variables
     slack_clf = opti.variable(n_clf,1); % control variables 
     %% Define Fixed Time constraints
@@ -31,16 +33,20 @@ function [status, u] = solve_fxtm_clf(self, ...
     if (x_ego(3) - v_des)^2<=0.1
         v_des = v_des+0.1;
     end
+    % if (x_ego(2) - y_des)^2==0.0 
+    %     y_des = y_des+0.001;
+    % end
     % Define Lyapunov Function
-    h_angle = @(x) (x(4) - theta_des)^2;
+    h_y = @(x) (x(2)-y_des)^2;
+    h_angle = @(x) (x(4))^2;
     h_speed = @(x) (x(3) - v_des)^2;
     p1 = 3;
     h_pos = @(x) 2*(x_des-x(1))*x(3)*cos(x(4))+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
-        h_goal = {h_angle, h_speed, h_pos}; 
+        h_goal = {h_y, h_angle, h_speed, h_pos}; 
     else
-        h_goal = {h_angle, h_speed}; 
+        h_goal = {h_y, h_angle, h_speed}; 
     end
     % Define qp matrix
     U = [u_var;zeros(2,1)];
@@ -51,7 +57,7 @@ function [status, u] = solve_fxtm_clf(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        if i<=1
+        if i<=2
             opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p)-slack_clf(i)<=...
                 -h_g_i(x_p));                
         else
@@ -75,13 +81,17 @@ function [status, u] = solve_fxtm_clf(self, ...
     gamma_u = 1/max((self.accelMax-u_ref)^2,(self.accelMin-u_ref)^2);
     gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
     H_u = diag([gamma_u, gamma_omega]);
-    if ~h_des_x
-        H_delta_clf = diag([10,10]);
-        F_slack = [0, 1000];
-    else
+    if ~h_des_x 
         H_delta_clf = diag([10,10,10]);
-        F_slack = [0, 1000, 1000];
+        F_slack = [0, 0, 1000];
+    elseif h_des_x && abs(x_ego(2)-y_des)>=0.5
+        H_delta_clf = diag([10,10,10,10]);
+        F_slack = [0, 0, 1000, 1000];
+    else
+        H_delta_clf = diag([10,10,10,10]);
+        F_slack = [0, 0, 1000, 1000];
     end
+
     H = blkdiag(H_u, H_delta_clf);
     
     % Linear Cost

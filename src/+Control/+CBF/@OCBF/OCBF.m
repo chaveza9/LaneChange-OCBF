@@ -4,10 +4,10 @@ classdef OCBF < matlab.System
     properties
         accelMax (1,1) double {mustBeReal, mustBeFinite} = 3.3;    % Vehicle i max acceleration
         accelMin (1,1) double {mustBeReal, mustBeFinite} = -7;   % Vehicle i min acceleration
-        omegaMin (1,1) double {mustBeReal, mustBeFinite} = -0.3;    % Vehicle i min angular rate
-        omegaMax (1,1) double {mustBeReal, mustBeFinite} = 0.3;     % Vehicle i max angular rate
-        phiMin (1,1) double {mustBeReal, mustBeFinite} = -0.44 % Vehicle i min steering
-        phiMax (1,1) double {mustBeReal, mustBeFinite} = 0.44;     % Vehicle i max steering
+        omegaMin (1,1) double {mustBeReal, mustBeFinite} = -0.6109;    % Vehicle i min angular rate
+        omegaMax (1,1) double {mustBeReal, mustBeFinite} = 0.6109;     % Vehicle i max angular rate
+        thetaMin (1,1) double {mustBeReal, mustBeFinite} = -0.1745 % Vehicle i min steering
+        thetaMax (1,1) double {mustBeReal, mustBeFinite} = 0.1745;     % Vehicle i max steering
         velMin (1,1) double {mustBeReal, mustBeFinite} = 13;    % Road min velocity
         velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;   % Road max velocity 
         tau = 1.2;
@@ -35,13 +35,26 @@ classdef OCBF < matlab.System
     methods(Access=protected)
         function [status, u] = stepImpl(self,...
                 collaborative, x_ego_k, x_front_k, x_adj_k, u_ref, v_des, ...
-                phi, t_f, x_des, theta_des)
+                phi, t_f, x_des, y_des, flag)
+            arguments
+                self
+                collaborative
+                x_ego_k
+                x_front_k
+                x_adj_k
+                u_ref
+                v_des
+                phi
+                t_f
+                x_des
+                y_des
+                flag = false;
+            end
             status= false;
-            
             if self.split
                 % Compute CLF
                 [~, u_ref_clf] = self.solve_fxtm_clf(...
-                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, theta_des);
+                    x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, y_des, flag);
                 if collaborative
                     % Solve problem with both obstacles
                     [status, u] = self.solve_cbf_2(x_ego_k, x_front_k, ...
@@ -57,11 +70,11 @@ classdef OCBF < matlab.System
                     % Solve problem with both obstacles
                     [status, u] = self.solve_fxtm_clbf_2(...
                         x_ego_k, x_front_k, u_ref, t_f, v_des, x_des,...
-                        x_adj_k, phi, theta_des);
+                        x_adj_k, phi, y_des);
                 end
                 if ~status
                     [status, u] = self.solve_fxtm_clbf_1(x_ego_k, x_front_k,...
-                        u_ref, t_f, v_des, x_des, theta_des);
+                        u_ref, t_f, v_des, x_des, y_des);
                 end
             end
             % Check if solution is valid
@@ -73,7 +86,7 @@ classdef OCBF < matlab.System
         % Implemented outside
         % CLF
         [status, u] = solve_fxtm_clf(self, ...
-            x_ego, x_front, u_ref, t_f, v_des, x_des, theta_des)
+            x_ego, x_front, u_ref, t_f, v_des, x_des, y_des, flag)
         % CBF
         [status, u] = solve_cbf_1(self, x_ego, x_front, u_ref)
         [status, u] = solve_cbf_2(self, x_ego, x_front, u_ref,...

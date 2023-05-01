@@ -21,7 +21,7 @@ classdef IntelligentVehicle < handle
         VelMin
             
         % Rear Safety Distance
-        MinSafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 7;
+        MinSafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 5;
         ReactionTime (1,:) double {mustBeNumeric, mustBePositive}= 0.9;
 
         % Simulation Metadata
@@ -287,7 +287,7 @@ classdef IntelligentVehicle < handle
             t_des = max(abs(self.t_f - (self.CurrentTime - self.t_0)), 0.01);
             % t_des = self.t_f;
             x_des = self.x_f;
-            theta_des = 0;
+            y_des = self.DesYPos;
             % u_ref=  0;
             % Compute CBF control input based on reference signal    
             switch self.RollType
@@ -295,11 +295,11 @@ classdef IntelligentVehicle < handle
                 case 'cav1'
                     collab = 0;
                     phi = 0;
-                    v_ref = self.DesSpeed;
+                    v_ref = self.DesSpeed+2;
                     x_k_adj = x_k_ego([1,3])*0;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
-                        phi, t_des, x_des, theta_des);
+                        phi, t_des, x_des, y_des);
                 % CAV 1 is safe with respect to Leader vehicle (cav 1 and
                 % cav C terminal position
                 case 'cav2'
@@ -323,7 +323,7 @@ classdef IntelligentVehicle < handle
                             self.extract_states_from_id(self.Ego_cav_id));
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
-                        phi, t_des, x_des, theta_des);
+                        phi, t_des, x_des, y_des);
                 % CAV C is safe with respect to Leader vehicle (veh U) and
                 % CAV 1
                 case 'cavC'
@@ -345,13 +345,13 @@ classdef IntelligentVehicle < handle
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
                     % Compute desired y Position
-                    if ~self.StartLatManeuver
-                        theta_des = -theta_des;
+                    if ~self.StartLatManeuver 
+                        y_des = -y_des;
                     end
                     
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
-                        phi, t_des, x_des, theta_des);
+                        phi, t_des, x_des, y_des, self.StartLatManeuver);
                 otherwise
                     error('case not defined')
             end
@@ -368,7 +368,7 @@ classdef IntelligentVehicle < handle
             % Update Time Step
             self.CurrentTime = self.CurrentTime + self.SampleTime;
             % ------- Check if lateral maneuver should take place --------
-            if strcmp(self.RollType,'cavC')
+            if strcmp(self.RollType,'cavC') && ~self.StartLatManeuver
                 self.StartLatManeuver = ...
                     self.check_lateral_maneuver_conditions;
             end
