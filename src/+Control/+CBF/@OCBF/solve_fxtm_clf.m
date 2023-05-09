@@ -89,7 +89,7 @@ function [status, u] = solve_fxtm_clf(self, ...
         F_slack = [0, 0, 1000, 1000];
     else
         H_delta_clf = diag([10,10,10,10]);
-        F_slack = [0, 0, 1000, 1000];
+        F_slack = [0, 0, 100, 1000];
     end
 
     H = blkdiag(H_u, H_delta_clf);

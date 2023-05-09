@@ -31,7 +31,7 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         t_avg = 8;      % Average time
         % Tunning Constants
         gamma_t = 1/T_max;
-        gamma = 0.1;
+        gamma = 0.5;
         % Compute problem paramters
         numCandidates = size(x_0,1);
         M = 1000;
@@ -56,7 +56,7 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         % CAV C
         [gamma_x, gamma_v] = compute_disruption_norm_cons(...
             gamma, v_max, v_min, v_C_0, v_d, t_avg);
-        cost = cost + 0*compute_disruption(gamma_x, gamma_v,...
+        cost = cost + compute_disruption(gamma_x, gamma_v,...
             x_C_0, v_C_0, x_ego_var, v_ego_var, tf_var);
         % CAVs
         for k=1:numCandidates
@@ -132,7 +132,7 @@ end
 function [gamma_x, gamma_v] = compute_disruption_norm_cons...
     (gamma, v_max, v_min, v_0, v_d, t_avg)
     gamma_x = gamma/(max(v_max-v_0,v_min-v_0)*t_avg)^2;
-    gamma_v = (1-gamma)*max(v_max-v_d, v_min-v_d)^2;
+    gamma_v = (1-gamma)/max(v_max-v_d, v_min-v_d)^2;
 end
 function disruption = compute_disruption...
     (gamma_x, gamma_v, x_0, v_0, x_i, v_i, t)

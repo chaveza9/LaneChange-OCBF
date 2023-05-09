@@ -19,7 +19,7 @@ classdef OCBF < matlab.System
         % Control variables
         n_controls = 2; %[acc, omega]
         n_states = 4; %[pos, vel] [m, m/s]
-        split = true
+        split = 1
     end
 
     methods
@@ -70,11 +70,15 @@ classdef OCBF < matlab.System
                     % Solve problem with both obstacles
                     [status, u] = self.solve_fxtm_clbf_2(...
                         x_ego_k, x_front_k, u_ref, t_f, v_des, x_des,...
-                        x_adj_k, phi, y_des);
+                        x_adj_k, phi, y_des, flag);
                 end
                 if ~status
                     [status, u] = self.solve_fxtm_clbf_1(x_ego_k, x_front_k,...
-                        u_ref, t_f, v_des, x_des, y_des);
+                        u_ref, t_f, v_des, x_des, y_des, flag);
+                end
+                if ~status
+                    [status, u] = self.solve_cbf_1(...
+                            x_ego_k, x_front_k, u);
                 end
             end
             % Check if solution is valid
@@ -94,10 +98,10 @@ classdef OCBF < matlab.System
         % CLBF
         [status, u] = solve_fxtm_clbf_2(self, ...
             x_ego, x_front, u_ref, t_f, v_des, x_des,...
-            x_adj_front, phi, theta_des)
+            x_adj_front, phi, y_des, flag)
         [status, u] = solve_fxtm_clbf_1(self, ...
             x_ego, x_front, u_ref, t_f, v_des, ...
-            x_des, theta_des)
+            x_des, y_des, flag)
         %% Helper Variables
         function [Lgb, Lfb] = compute_lie_derivative_1st_order(self, ...
                 barrier_fun)

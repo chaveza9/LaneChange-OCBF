@@ -1,6 +1,6 @@
  % CBF with 2 obstacle constraint (mergin constraint
 function [status, u] = solve_fxtm_clbf_2(self, ...
-    x_ego, x_front, u_ref, t_f, v_des, x_des, x_adj_front, phi, theta_des)
+    x_ego, x_front, u_ref, t_f, v_des, x_des, x_adj_front, phi, y_des, flag)
     opti = casadi.Opti(); % Optimization problem
     %% Setup optimization variables
     % Optimization Variables
@@ -9,14 +9,15 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
     x_p = [x_ego; x_front; x_adj_front]; % state variables [x_ego, v_ego, x_obst, v_obst]
     
     %% CBF-CLF Parameters
-     % determine if x_des is feasible
-    if (x_ego(1)-x_des)^2<=10
+    % determine if x_des is feasible
+    if x_des-x_ego(1)<=0.5 || flag
         h_des_x = 0;
+        x_des = x_des+10;
     else
         h_des_x = 1;
     end
     % Num constraints
-    n_clf = 2+h_des_x; % Desired Speed, Desired Terminal Position
+    n_clf = 3+h_des_x; % Desired Speed, Desired Terminal Position
     n_cbf = 4; % speed constraints, Front vehicle ACC, adjacent veh ACC
     % Compute Fixed time guarantees rates
     gamma_1 = 1 + 1/self.mu_clf;
@@ -26,20 +27,17 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
     slack_clf = opti.variable(n_clf,1); % control variables 
     slack_cbf = opti.variable(n_cbf,1); % control variables 
     % ----------  Compute conditions CLF ----------
-    % Avoid nullifying desired speed)
-    if (x_ego(3) - v_des)^2<=0.1
-        v_des = v_des+0.1;
-    end
     % Define Lyapunov Function
-    h_angle = @(x) (x(4) - theta_des)^2;
+    h_y = @(x) (x(2)-y_des)^2;
+    h_angle = @(x) (x(4))^2;
     h_speed = @(x) (x(3) - v_des)^2;
     p1 = 3;
     h_pos = @(x) 2*(x_des-x(1))*x(3)*cos(x(4))+p1*(x(1) - x_des)^2;
     % Concatenate functions
     if h_des_x
-        h_goal = {h_angle, h_speed, h_pos}; 
+        h_goal = {h_y, h_angle, h_speed, h_pos}; 
     else
-        h_goal = {h_angle, h_speed}; 
+        h_goal = {h_y, h_angle, h_speed}; 
     end
     % Define qp matrix
     U = [u_var;zeros(2,1)];
@@ -50,7 +48,7 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
         h_g_i = h_goal{i};
         % Compute clf constraints
         [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
-        if i<=2
+        if i<=2 || true
             opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p)-slack_clf(i)<=...
                 -h_g_i(x_p));                
         else
@@ -73,7 +71,7 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
         h_s_i = h_safe{i};
         % Compute CBF constraints
         [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        if false || i>=3
+        if true || i>=3
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
         else
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
@@ -99,11 +97,11 @@ function [status, u] = solve_fxtm_clbf_2(self, ...
     gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
     H_u = diag([gamma_u, gamma_omega]);
     if ~h_des_x
-        H_delta_clf = diag([10,100]);
-        F_slack_clf = [0, 0];
-    else
         H_delta_clf = diag([10,10,10]);
-        F_slack_clf = [0, 1000, 1000];
+        F_slack_clf = [0, 0, 1000];
+    else
+        H_delta_clf = diag([10,10,10,10]);
+        F_slack_clf = [0, 0, 1000, 1000];
     end
     H_delta_cbf = diag([10,10,10,10]);
     H = blkdiag(H_u, H_delta_clf, H_delta_cbf);

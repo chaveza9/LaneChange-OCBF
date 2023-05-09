@@ -110,7 +110,7 @@ names = ["position", "speed", "acceleration", "triplet_history"];
 if ~isempty(save_location)
     for i=1:4
         savefig(f(i),strcat(save_location,filesep,names(i)))
-        saveas(f(i),strcat(save_location,filesep,names(i),'.pdf'))
+        print(f(i),strcat(save_location,filesep,names(i)),'-dpdf','-bestfit')
     end
 end
 

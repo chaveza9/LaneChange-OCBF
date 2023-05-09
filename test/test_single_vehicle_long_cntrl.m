@@ -17,7 +17,7 @@ constraints.v_min = 10;      % Vehicle i min velocity
 constraints.v_max = 35;      % Vehicle i max velocity
 % Initial Conditions
 % Vehicle C
-
+num_vehicles=1;
 
 
 VehID = '1';
@@ -27,8 +27,8 @@ dt = 0.05;
 StopTime = 10;
 tf = 7.38;
 x_f = 362.7484;
-v_des = 28;
-x_0_c.Position = [115, 0]';
+v_des = 31;
+x_0_c.Position = [115, params.road.laneWidth*0.5]';
 x_0_c.Velocity = 28;
 x_0_c.Heading = 0;
 
@@ -38,6 +38,9 @@ scenario = Env.ds4vehicleScenario(params);
 % Create Vehicle
 cav = IntelligentVehicle(VehID, scenario, x_0_c, StopTime, constraints,...
     'SampleTime', dt);
+% Create Viz
+figScene = Env. createVisualizationPlot(scenario,params,num2str(num_vehicles));
+
 % Compute Analytical OCP 
 hasDefinedRoll = cav.define_cav_roll("cav1", tf, x_f, v_des, "verbose",1);
 % Step Through cav
@@ -50,6 +53,13 @@ for t = 0:dt:tf+dt
         break
     end
     % Advance simulation
-    advance(scenario)
+    advance(scenario);
 end
+ter_pos =  cav.CurrentState.Position(1)- x_f
+figure
+plot(cav.get_state_history("x"))
+figure
+plot(cav.get_state_history("v"))
+figure
+plot(cav.get_state_history("accel"))
 

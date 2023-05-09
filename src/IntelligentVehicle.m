@@ -304,6 +304,7 @@ classdef IntelligentVehicle < handle
                 % cav C terminal position
                 case 'cav2'
                     collab = 1;
+                    % v_ref = self.DesSpeed;
                     % Extract adj vehicle
                     adj_cav = self.find_vehicle_from_id(self.Ego_cav_id);
                     Lm = adj_cav.x_f - adj_cav.x_0(1);
@@ -345,7 +346,7 @@ classdef IntelligentVehicle < handle
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
                     % Compute desired y Position
-                    if ~self.StartLatManeuver 
+                    if ~self.StartLatManeuver %|| true
                         y_des = -y_des;
                     end
                     
@@ -369,8 +370,30 @@ classdef IntelligentVehicle < handle
             self.CurrentTime = self.CurrentTime + self.SampleTime;
             % ------- Check if lateral maneuver should take place --------
             if strcmp(self.RollType,'cavC') && ~self.StartLatManeuver
+                % Compute phi function for cav 1
+                if x_k_adj(1)-x_k_ego(1)>=self.MinSafetyDistance+5
+                    phi1 = phi(x_k_ego);
+                else
+                    phi1 = self.ReactionTime;
+                end
+                
+                % Compute phi function for cav 2
+                adj2_cav = self.find_vehicle_from_id(self.Rear_cav_id);
+                Li2 = adj2_cav.x_f - adj2_cav.x_0(1);
+                Lm2 = self.x_f - self.x_0(1);
+                x_k_2 = self.contruct_integrator_states(...
+                            self.extract_states_from_id(self.Rear_cav_id));
+                if x_k_ego(1)-x_k_2(1)>=0
+                    safety_term  = (Lm2 - Li2 + ...
+                        self.MinSafetyDistance)/self.x_0(2);
+                    phi2 = (self.ReactionTime+ ...
+                        safety_term)*min((x_k_2(1)-self.x_0(1))/Li, 1) - ...
+                        safety_term;
+                else
+                    phi2 = self.ReactionTime;
+                end
                 self.StartLatManeuver = ...
-                    self.check_lateral_maneuver_conditions;
+                    self.check_lateral_maneuver_conditions(phi1, phi2);
             end
         end %step
 
@@ -468,7 +491,7 @@ classdef IntelligentVehicle < handle
             self.Vehicle.Velocity(1) = self.CurrentState.Velocity;
             self.Vehicle.Yaw = self.CurrentState.Heading*180/pi;
         end    
-        function hasStartedLatManeuver = check_lateral_maneuver_conditions(self)
+        function hasStartedLatManeuver = check_lateral_maneuver_conditions(self, phi1, phi2)
             % check_lateral_maneuver_conditions
             % -------------------------------------------------------------
             % monitors the conditions for which a lateral maneuver should
@@ -488,13 +511,13 @@ classdef IntelligentVehicle < handle
             % Longitudinal Position Condition
             subCondition1C = (veh1.CurrentState.Position(1)- ... 
                 self.CurrentState.Position(1))>=...
-                self.CurrentState.Velocity(1)*self.ReactionTime + ...
+                self.CurrentState.Velocity(1)*phi1 + ...
                 self.MinSafetyDistance;
             %% Distance between CAV 2 and CAVC
             % Longitudinal Position Condition
             subCondition2C = (self.CurrentState.Position(1)- ... 
                 veh2.CurrentState.Position(1))>=...
-                veh2.CurrentState.Velocity(1)*self.ReactionTime + ...
+                veh2.CurrentState.Velocity(1)*phi2 + ...
                 self.MinSafetyDistance;            
             % Check if maneuver should start
             hasStartedLatManeuver = subCondition1C && subCondition2C;
