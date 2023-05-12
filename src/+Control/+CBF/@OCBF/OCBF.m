@@ -2,6 +2,7 @@ classdef OCBF < matlab.System
     %MPC_CBF Summary of this class goes here
     %   Detailed explanation goes her
     properties
+        % Physical Constraints
         accelMax (1,1) double {mustBeReal, mustBeFinite} = 3.3;    % Vehicle i max acceleration
         accelMin (1,1) double {mustBeReal, mustBeFinite} = -7;   % Vehicle i min acceleration
         omegaMin (1,1) double {mustBeReal, mustBeFinite} = -0.6109;    % Vehicle i min angular rate
@@ -10,10 +11,18 @@ classdef OCBF < matlab.System
         thetaMax (1,1) double {mustBeReal, mustBeFinite} = 0.1745;     % Vehicle i max steering
         velMin (1,1) double {mustBeReal, mustBeFinite} = 13;    % Road min velocity
         velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;   % Road max velocity 
+        % Safety Parameters
         tau = 1.2;
-        dt = 0.1;
-        wheelBase (1,1) double {mustBeReal, mustBeFinite} = 5 % Vehicle wheel base Lw [m]
         delta_dist = 10;
+        % Simulation Time
+        dt = 0.1;
+        %Noise Levels 
+        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.15; % x Position noise [m]
+        w_y (1,1) double {mustBeReal, mustBeFinite} = 0.15; % y Position noise [m]
+        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2; % speed noise [m/s]
+        w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.05; % heading noise [rad]
+        % Vehicle Parameters
+        wheelBase (1,1) double {mustBeReal, mustBeFinite} = 5 % Vehicle wheel base Lw [m]
         % Tunning Parameters
         mu_clf = 5;
         % Control variables
@@ -103,10 +112,10 @@ classdef OCBF < matlab.System
             x_ego, x_front, u_ref, t_f, v_des, ...
             x_des, y_des, flag)
         %% Helper Variables
-        function [Lgb, Lfb] = compute_lie_derivative_1st_order(self, ...
+        function [Lgb, Lfb, Lwb] = compute_lie_derivative_1st_order(self, ...
                 barrier_fun)
         
-            %% Define CBF functions
+            %% Define system states
             x_s = casadi.MX.sym('x', self.n_states+4);
             %% Compute cbf constraints
             alpha_0 = barrier_fun(x_s);
@@ -116,8 +125,10 @@ classdef OCBF < matlab.System
             db_dx = b.jacobian_old(0,0);
             Lfb = casadi.Function('Lfb',{x_s},...
                       {db_dx(x_s)*self.f(x_s)});
-            Lgb = casadi.Function('LgLfb',{x_s},...
+            Lgb = casadi.Function('LgLb',{x_s},...
                       {db_dx(x_s)*self.g(x_s)});
+            Lwb = casadi.Function('LwLb',{x_s},...
+                      {db_dx(x_s)*self.W(x_s)});
         end
 
                  %% Define Control Affine Dynamics
@@ -128,7 +139,7 @@ classdef OCBF < matlab.System
             x3_dot = [x(8), 0]';
             x_dot = [x1_dot;x2_dot;x3_dot];
         end
-        function  val = g(self, x)
+        function  G = g(self, x)
             b1 = [0 , -x(3)*sin(x(4));
                   0  ,  x(3)*cos(x(4));
                   1  ,  0;
@@ -136,8 +147,25 @@ classdef OCBF < matlab.System
             b2 = [0;1];
             b3 = [0;1];
             
-            val = blkdiag(b1,b2,b3);
-
+            G = blkdiag(b1,b2,b3);
+        end
+        function H = W(self, x)
+            z = length(x)-self.n_states;
+            H = blkdiag(eye(self.n_states),eye(z)); 
+        end
+        function [b,H] = noise_lims(self)
+            % Hw<=b
+            vals = [1;-1];
+            b = [vals*self.w_x % ego x
+                 vals*self.w_y % ego y
+                 vals*self.w_v % ego v
+                 vals*self.w_theta % ego theta
+                 vals*self.w_x % front x
+                 vals*self.w_v % front v
+                 vals*self.w_x % adj x
+                 vals*self.w_v % adj v
+                 ];
+            H =  blkdiag(vals,vals,vals,vals,vals,vals,vals,vals);
         end
 
     end

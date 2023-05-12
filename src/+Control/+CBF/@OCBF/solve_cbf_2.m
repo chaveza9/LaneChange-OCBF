@@ -24,17 +24,28 @@ function [status, u] = solve_cbf_2(self, ...
     b_dist_ego_adj = @(x) (x(7)-x(1))-phi(x)*x(3) -self.delta_dist;
     h_safe = {b_v_min,b_v_max, ...b_theta_max...
         b_dist_ego_front, b_dist_ego_adj};            
+    %% Define dual variables
+    mu = opti.variable(n_cbf,length(x_p)*2);
+    %% Create constraints
     for i =1:length(h_safe)
         % Define barrier function
         h_s_i = h_safe{i};
         % Compute CBF constraints
-        [Lgh_s, Lfh_s] = self.compute_lie_derivative_1st_order(h_s_i);
-        if i>=3 || true
-            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +slack_cbf(i)*h_s_i(x_p)^2>=0)
+        [Lgh_s, Lfh_s, lwh_s] = self.compute_lie_derivative_1st_order(h_s_i);
+        % Extract dual variables
+        mu_i = mu(i,:)';
+        [b,A] = self.noise_lims;
+        % Compute constraint
+        if i==3 || true
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U + b'*mu_i ...
+                 +slack_cbf(i)*h_s_i(x_p)^2>=0)
         else
-            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U +h_s_i(x_p)^2>=0)
+            opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U + b'*mu_i ...
+                +h_s_i(x_p)^2>=0)
         end
-        
+        % Add dual constraints
+        opti.subject_to(mu_i'*A==lwh_s(x_p))
+        opti.subject_to(mu_i<=0)
     end
     
     opti.subject_to(slack_cbf(i)>=0.0);

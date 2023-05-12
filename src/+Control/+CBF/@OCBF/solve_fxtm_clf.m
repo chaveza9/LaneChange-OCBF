@@ -50,21 +50,31 @@ function [status, u] = solve_fxtm_clf(self, ...
     end
     % Define qp matrix
     U = [u_var;zeros(2,1)];
+    %% Define dual variables
+    lambda = opti.variable(n_clf,length(x_p)*2);
+    %% Create constraints
     for i =1:length(h_goal)
         % Compute gamma exponents
         % opti.subject_to()
         % Define lyapunov function
         h_g_i = h_goal{i};
         % Compute clf constraints
-        [Lgh_g, Lfh_g] = self.compute_lie_derivative_1st_order(h_g_i);
+        [Lgh_g, Lfh_g, lwh_g] = self.compute_lie_derivative_1st_order(h_g_i);
+        % Extract dual variables
+        lambda_i = lambda(i,:)';
+        [b,A] = self.noise_lims;
+        % Add clf constraint
         if i<=2
-            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p)-slack_clf(i)<=...
-                -h_g_i(x_p));                
+            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) + b'*lambda_i...
+                -slack_clf(i)<= -h_g_i(x_p));                
         else
-            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) <= ...
+            opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) + b'*lambda_i<= ...
                 -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...
                 alpha*max(0,h_g_i(x_p))^gamma_2);                
         end
+        % Add dual constraints
+        opti.subject_to(lambda_i'*A==lwh_g(x_p))
+        opti.subject_to(lambda_i>=0)
     end
     
     % Add Actuation Limits
