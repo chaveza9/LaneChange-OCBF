@@ -20,6 +20,13 @@ classdef VehicleDynamics < matlab.System
         t_k(1,1) double {mustBeReal, mustBeFinite} = 0
         % Integration Substeps
         N_substeps = 1;
+        % Vehicle constraints
+        VelMin = 10;
+        %Noise Levels 
+        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.15; % x Position noise [m]
+        w_y (1,1) double {mustBeReal, mustBeFinite} = 0.15; % y Position noise [m]
+        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2; % speed noise [m/s]
+        w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.05; % heading noise [rad]
         
     end
     % provate properties
@@ -51,7 +58,7 @@ classdef VehicleDynamics < matlab.System
             % Computes the step of a model using the predefined kinematic model
             % at dt. Uses ODE45 with the last time step
             if nargin == 1
-               if self.x_k(3)>=12
+               if self.x_k(3)>=self.VelMin+2
                    u_k = [-2.5, 0]';
                else
                    u_k = [-0.0, 0]';
@@ -73,7 +80,8 @@ classdef VehicleDynamics < matlab.System
             [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
                 [t_k_1 ,self.t_k], self.x_k);
             % Extract X(tk)
-            self.x_k = y(end, :);
+            noise_level = [self.w_x,self.w_y,self.w_v,self.w_theta]'; 
+            self.x_k = normrnd (y(end, :)', noise_level.^2);
             % Update current state and current time
             self.add_state_history(self.x_k, u_k, self.t_k)
             x_curr = self.x_k;
