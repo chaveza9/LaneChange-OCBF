@@ -26,5 +26,6 @@ function status = store_results(TOD,frameCount,StopTime, Frames, cav_env,...
     % Write comments to the file
     fprintf(fid, 'Comments:\n');
     fprintf(fid, '%s \n', comment);
+    fclose(fid);
 end
 

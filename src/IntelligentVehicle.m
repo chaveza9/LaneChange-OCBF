@@ -21,9 +21,9 @@ classdef IntelligentVehicle < handle
         VelMin
 
         %Noise Levels 
-        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.2*0; % x Position noise [m]
+        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.5; % x Position noise [m]
         w_y (1,1) double {mustBeReal, mustBeFinite} = 0.0; % y Position noise [m]
-        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2*0; % speed noise [m/s]
+        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2; % speed noise [m/s]
         w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.00; % heading noise [rad]
 
         % Rear Safety Distance
@@ -80,7 +80,7 @@ classdef IntelligentVehicle < handle
         DesSpeed = 33;
         % Desired Y Position 
         DesYPos = 1.8; %[m]
-        AdaptiveSafetyCheck = 0;
+        AdaptiveSafetyCheck = 1;
         % Collaboration vehicles id
         Ego_cav_id = [];
         Front_cav_id = [];
@@ -471,11 +471,12 @@ classdef IntelligentVehicle < handle
                 isLeader = false;
             end
         end %find_leader
-        function state_hist = get_state_history(self, type)
+        function state_hist = get_state_history(self, type, upperTimeLimit)
             % Returns the timeseries datatype of state history
             arguments
                 self
-                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','steering','safety','ocp_difference'})} 
+                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','steering','safety','ocp_difference'})}
+                upperTimeLimit = 0;
             end
             
             switch type
@@ -526,10 +527,46 @@ classdef IntelligentVehicle < handle
             state_hist = timeseries(vec,time,"Name",type);
             state_hist.TimeInfo.Units = 'sec';
             state_hist.DataInfo.Units = units;
-
+            % Export Time data based on range
+            if upperTimeLimit>0
+               state_hist = state_hist.getsampleusingtime(0, upperTimeLimit); 
+            end
+        end
+        function [dx_ideal, dv_ideal, dx_actual, dv_actual,...
+                total_ideal, total_actual, avg_diff, std_diff] = ...
+                get_disruption(self,time)
+            % Computes disruption based on initial conditions and current
+            % time
+            % -------------------------------------------------------------
+            % Extract timeseries data
+            % Actual
+            pos = self.get_state_history("x",time);
+            speed = self.get_state_history("v",time);
+            acc_diff =  self.get_state_history("ocp_difference",time);
+            % ideal
+            ideal_x = self.ocp_prob.x_t_hist.getsampleusingtime(0, time); %2,1,n%
+            % Compute average difference
+            std_diff = std(acc_diff);
+            avg_diff = mean(acc_diff);
+            % Compute ideal disruption 
+            [gamma_x, gamma_v] = self.compute_disruption_norm_cons...
+                    (0.5, self.VelMax, self.VelMin, ideal_x.Data(2,1,1),...
+                    self.DesSpeed, time);
+            [dx_ideal, dv_ideal, total_ideal] = self.compute_disruption(...
+                gamma_x, gamma_v, ...
+                ideal_x.Data(1,1,1), ideal_x.Data(2,1,1), ...
+                ideal_x.Data(1,1,end), ideal_x.Data(2,1,end), time);
+            % Compute actual disruption 
+            [gamma_x, gamma_v] = self.compute_disruption_norm_cons...
+                    (0.5, self.VelMax, self.VelMin, speed.Data(1),...
+                    self.DesSpeed, time);
+            [dx_actual, dv_actual, total_actual] = self.compute_disruption(...
+                gamma_x, gamma_v, ...
+                pos.Data(1), speed.Data(1), ...
+                pos.Data(end), speed.Data(end), time);
         end
     end %public Methods
-
+    
     
     methods (Access = protected)
         function update_actor_states(self)
@@ -625,6 +662,17 @@ classdef IntelligentVehicle < handle
     end % methods
 
     methods (Static)
+        function [gamma_x, gamma_v] = compute_disruption_norm_cons...
+            (gamma, v_max, v_min, v_0, v_d, t_avg)
+            gamma_x = gamma/(max(v_max-v_0,v_min-v_0)*t_avg)^2;
+            gamma_v = (1-gamma)/max(v_max-v_d, v_min-v_d)^2;
+        end
+        function [dis_x, dis_v, disruption] = compute_disruption...
+            (gamma_x, gamma_v, x_0, v_0, x_i, v_i, t)
+            dis_x = gamma_x*(x_i-(x_0+v_0*t))^2;
+            dis_v = gamma_v*(v_i-v_0)^2;
+            disruption = dis_x + dis_v;
+        end
         function state = decompose_state(states)
             state = [states.Position; ...
                     states.Velocity;...

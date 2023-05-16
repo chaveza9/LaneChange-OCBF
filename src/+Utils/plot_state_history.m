@@ -24,7 +24,7 @@ for i = 1:num_vehicles
     plot(cav_set(i).get_state_history('x'))
     hold on
     % Add terminal position
-    if ~ strcmp(cav_set(i).VehicleID,'u')
+    if ~ contains(cav_set(i).VehicleID,'u','IgnoreCase',true)
         plot(tf, cav_set(i).x_f, 'Marker','x','MarkerSize',10)
     end
     % Add time markers for lane change
@@ -99,7 +99,7 @@ xlabel("Time [s]")
 %% Acceleration Difference History Plot
 f(4) = figure('Name','Control Input Difference Plot', 'Position',[100 100 700 1200]);
 for i = 1:num_vehicles
-    if ~ strcmp(cav_set(i).VehicleID,'u')
+    if ~ contains(cav_set(i).VehicleID,'u','IgnoreCase',true)
         subplot(num_vehicles, 1, i)
         % Add acceleration history
         plot(cav_set(i).get_state_history("ocp_difference"))

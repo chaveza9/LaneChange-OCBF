@@ -5,6 +5,8 @@ clc
 addpath(['.',filesep,'src',filesep]);
 import casadi.*
 tic
+%% Create comments regarding the experiment
+comment = "Experiment: Nominal with noise (wx=0.5, wv=0.2) and 2 uncooperative decelerating agents with adaptive safety check and no fxtime";
 %% Environmental Setting
 StoreResults = 1;
 TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');
@@ -20,6 +22,7 @@ min_pos = 0;
 v_des = 34; %m/s
 reactionTime = 0.8;
 minSafeDistance = 7;
+uncooperative_decel = -2.5;
 % Vehicle dimensions
 params.actors.carLen   = 4.7; % [m]
 params.actors.carWidth = 1.8; % [m]
@@ -75,13 +78,14 @@ cav_c = IntelligentVehicle('c', scenario, states_c, StopTime, ...
 veh_u = IntelligentVehicle('u', scenario, states_u, StopTime,  ...
     constraints, 'SafetyDistance',minSafeDistance, 'SampleTime', dt, ...
     'ReactionTime',reactionTime, 'VehicleType','NonControlled', ...
-    'VehicleClass',2); 
+    'VehicleClass',2,'UDecel',uncooperative_decel);
 % Create CAV Set
 cav_set = repelem(cav_c, num_vehicles, 1);
-cav_set(1) =  IntelligentVehicle('F', scenario, states_cav(1), ...
+cav_set(1) =  IntelligentVehicle('FU', scenario, states_cav(1), ...
         StopTime,  constraints, 'SafetyDistance',minSafeDistance,...
         'SampleTime', dt, 'ReactionTime',reactionTime, ...
-        'VehicleType','NonControlled', 'VehicleClass',2); 
+        'VehicleType','NonControlled', 'VehicleClass',2,...
+        'UDecel',uncooperative_decel);
 for i=2:num_vehicles
     vehID = num2str(i);
     cav_set(i) =  IntelligentVehicle(vehID, scenario, states_cav(i), ...
@@ -159,23 +163,11 @@ ter_pos = cell2mat(arrayfun(@(x) x.CurrentState.Position', ...
 disp(ter_pos(:,1)-[x_f;x_e_f;0] );
 
 % Store Files
-
 if StoreResults
-    % Create containing folder 
-    location = strcat('.',filesep,'Results',filesep,TOD);
-    status = mkdir(location);
-    filename = strcat(location,filesep,'test_',TOD,'.mp4');
-    fprintf("Generating video...\n")
-    writerObj = VideoWriter(filename,'MPEG-4');
-    writerObj.FrameRate = round(frameCount/StopTime);
-    open(writerObj)
-    writeVideo(writerObj, Frames);
-    close(writerObj);
+    Utils.store_results(TOD,frameCount,StopTime, Frames, cav_env,...
+    tf, i_m, comment); 
+else
+    % Create history plots
+    Utils.plot_state_history(cav_env, tf, i_m, [])
 end
 
-% Create figures
-if ~StoreResults
-    location = [];
-end
-
-Utils.plot_state_history(cav_env, tf, i_m, location)
