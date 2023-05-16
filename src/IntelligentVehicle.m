@@ -21,10 +21,10 @@ classdef IntelligentVehicle < handle
         VelMin
 
         %Noise Levels 
-        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.15; % x Position noise [m]
+        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.2*0; % x Position noise [m]
         w_y (1,1) double {mustBeReal, mustBeFinite} = 0.0; % y Position noise [m]
-        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2; % speed noise [m/s]
-        w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.0; % heading noise [rad]
+        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2*0; % speed noise [m/s]
+        w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.00; % heading noise [rad]
 
         % Rear Safety Distance
         MinSafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 5;
@@ -37,6 +37,7 @@ classdef IntelligentVehicle < handle
         CurrentTime double {mustBeNonnegative, mustBeNumeric} = 0.0;
         % Stop Time
         StopTime double {mustBeNonnegative, mustBeNumeric} = 100;
+        
         % Operational Parameters
         % Vehicle Dynamics
         Dynamics  % Vehicle Dynamics
@@ -59,12 +60,14 @@ classdef IntelligentVehicle < handle
         Leader = [];
         IsLeader logical {mustBeNumericOrLogical} = true;
         % Has arrived to destination lane
-        HasArrived logical {mustBeNumericOrLogical} = false;
-        IntersectTime = [];
+        LaneChangeTime_start = NaN;
+        LaneChangeTime_end = NaN;
+        % Difference between control inputs
+        u_diff_hist = [];
        
     end
 
-    properties
+    properties (SetAccess = private, GetAccess = public)
         % Control Instances Objects
         ocp_prob = []
         cbf_prob = []
@@ -77,6 +80,7 @@ classdef IntelligentVehicle < handle
         DesSpeed = 33;
         % Desired Y Position 
         DesYPos = 1.8; %[m]
+        AdaptiveSafetyCheck = 0;
         % Collaboration vehicles id
         Ego_cav_id = [];
         Front_cav_id = [];
@@ -95,6 +99,7 @@ classdef IntelligentVehicle < handle
                 InitialConditions struct
                 StopTime double {mustBeNonnegative, mustBeNumeric}
                 constraints
+                Options.UDecel double {mustBeNumeric} = 0.00;
                 Options.SampleTime double {mustBeNonnegative, mustBeNumeric} = 0.01;
                 Options.VehicleType (1,:) char {mustBeMember(Options.VehicleType,{'NonControlled','CAV'})} = 'CAV'
                 Options.SafetyDistance (1,:) double {mustBeNumeric, mustBePositive}= 10;
@@ -158,7 +163,8 @@ classdef IntelligentVehicle < handle
                 'w_x', self.w_x,...
                 'w_y', self.w_y,...
                 'w_v', self.w_v,...
-                'w_theta', self.w_theta);
+                'w_theta', self.w_theta, ...
+                'decel', Options.UDecel);
             % _________Initialize OCP and CBF models_______________
             self.ocp_prob = Control.OCP.CollabAccel(...
                 'accelMax', self.AccelMax, ...
@@ -310,7 +316,7 @@ classdef IntelligentVehicle < handle
                 case 'cav1'
                     collab = 0;
                     phi = 0;
-                    v_ref = self.DesSpeed+2;
+                    % v_ref = self.DesSpeed+2;
                     x_k_adj = x_k_ego([1,3])*0;
                     [status, u_k] = self.cbf_prob(collab, ...
                         x_k_ego, x_k_lead, x_k_adj, u_ref, v_ref, ...
@@ -361,7 +367,7 @@ classdef IntelligentVehicle < handle
                     x_k_adj = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Front_cav_id));
                     % Compute desired y Position
-                    if ~self.StartLatManeuver %|| true
+                    if ~self.StartLatManeuver 
                         y_des = -y_des;
                     end
                     
@@ -374,6 +380,8 @@ classdef IntelligentVehicle < handle
             if ~status
                 error('solution could not be found')
             end
+            % -------------- Store Difference between control ----------
+            self.u_diff_hist = cat(1,self.u_diff_hist, u_ref-u_k(1));
             % -------------- Apply control input ------------------------
             % Apply constant control input
             x_k = self.Dynamics.integrate_forward(u_k);
@@ -383,10 +391,18 @@ classdef IntelligentVehicle < handle
             isRunning = status;
             % Update Time Step
             self.CurrentTime = self.CurrentTime + self.SampleTime;
+            % ----------Check if maneuver has finished -----------------
+            if strcmp(self.RollType,'cavC') && self.StartLatManeuver ...
+                    && (self.CurrentState.Position(2)-self.DesYPos)^2<=0.05 ...
+                    && isnan(self.LaneChangeTime_end)
+                self.LaneChangeTime_end = self.CurrentTime;
+            end
+
             % ------- Check if lateral maneuver should take place --------
             if strcmp(self.RollType,'cavC') && ~self.StartLatManeuver
                 % Compute phi function for cav 1
-                if x_k_adj(1)-x_k_ego(1)>=self.MinSafetyDistance+5
+                if x_k_adj(1)-x_k_ego(1)>=self.MinSafetyDistance+5 ...
+                        && self.AdaptiveSafetyCheck
                     phi1 = phi(x_k_ego);
                 else
                     phi1 = self.ReactionTime;
@@ -398,7 +414,7 @@ classdef IntelligentVehicle < handle
                 Lm2 = self.x_f - self.x_0(1);
                 x_k_2 = self.contruct_integrator_states(...
                             self.extract_states_from_id(self.Rear_cav_id));
-                if x_k_ego(1)-x_k_2(1)>=0
+                if x_k_ego(1)-x_k_2(1)>=0 && self.AdaptiveSafetyCheck
                     safety_term  = (Lm2 - Li2 + ...
                         self.MinSafetyDistance)/self.x_0(2);
                     phi2 = (self.ReactionTime+ ...
@@ -409,7 +425,12 @@ classdef IntelligentVehicle < handle
                 end
                 self.StartLatManeuver = ...
                     self.check_lateral_maneuver_conditions(phi1, phi2);
+                % Store time at which maneuver started
+                if self.StartLatManeuver
+                    self.LaneChangeTime_start=self.CurrentTime;
+                end
             end
+
         end %step
 
 
@@ -454,7 +475,7 @@ classdef IntelligentVehicle < handle
             % Returns the timeseries datatype of state history
             arguments
                 self
-                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','ang_rate','safety'})} 
+                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','steering','safety','ocp_difference'})} 
             end
             
             switch type
@@ -462,36 +483,50 @@ classdef IntelligentVehicle < handle
                     %Position x
                     time = self.Dynamics.t_hist;
                     vec = self.Dynamics.x_hist(1,:);
+                    units = 'm';
                 case 'y'
                     %Position y
                     time = self.Dynamics.t_hist;
                     vec = self.Dynamics.x_hist(2,:);
+                    units = 'm';
                 case 'v'
                     %speed
                     time = self.Dynamics.t_hist;
                     vec = self.Dynamics.x_hist(3,:);
+                    units = 'm/s';
                 case 'theta'
                     %Heading Angle
                     time = self.Dynamics.t_hist;
-                    vec = self.Dynamics.x_hist(4,:);
+                    vec = self.Dynamics.x_hist(4,:)*180/pi;
+                    units = 'deg';
                 case 'accel'
                     % Acceleration
                     time = self.Dynamics.t_hist(1:end-1);
                     vec = self.Dynamics.u_hist(1,:);
-                case 'ang_rate'
+                    units = 'm/s^2';
+                case 'steering'
                     % Angular Rate
                     time = self.Dynamics.t_hist(1:end-1);
-                    vec = self.Dynamics.u_hist(2,:);
+                    vec = self.Dynamics.u_hist(2,:)*180/pi;
+                    units = 'deg';
                 case 'safety'
                     %Position x
                     time = self.Dynamics.t_hist;
                     pos = self.Dynamics.x_hist(1,:);
                     speed = self.Dynamics.x_hist(3,:);
                     vec = pos+speed*self.ReactionTime+self.MinSafetyDistance;
+                    units = 'm';
+                case 'ocp_difference'
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.u_diff_hist;
+                    units = 'm/s^2';
+
             end
             % Construct timeseries data
             state_hist = timeseries(vec,time,"Name",type);
-            state_hist.TimeInfo.Units = 'seconds';
+            state_hist.TimeInfo.Units = 'sec';
+            state_hist.DataInfo.Units = units;
+
         end
     end %public Methods
 

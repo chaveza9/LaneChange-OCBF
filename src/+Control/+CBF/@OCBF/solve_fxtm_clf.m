@@ -11,9 +11,10 @@ function [status, u] = solve_fxtm_clf(self, ...
     
     %% CBF-CLF Parameters
     % determine if x_des is feasible
-    if x_des-x_ego(1)<=0.5 || flag
-        h_des_x = 0;
-        x_des = x_des+10;
+    if x_des-x_ego(1)<=15 || flag 
+        h_des_x = 1;
+        x_des = x_des+150;
+        t_f = 10;
     else
         h_des_x = 1;
     end
@@ -93,13 +94,13 @@ function [status, u] = solve_fxtm_clf(self, ...
     H_u = diag([gamma_u, gamma_omega]);
     if ~h_des_x 
         H_delta_clf = diag([10,10,10]);
-        F_slack = [0, 0, 1000];
-    elseif h_des_x && abs(x_ego(2)-y_des)>=0.5
-        H_delta_clf = diag([10,10,10,10]);
-        F_slack = [0, 0, 1000, 1000];
-    else
+        F_slack = [0, 0, 10];
+    elseif h_des_x && abs(x_ego(2)-y_des)>=0.25
         H_delta_clf = diag([10,10,10,10]);
         F_slack = [0, 0, 100, 1000];
+    else
+        H_delta_clf = diag([10,10,10,10]);
+        F_slack = [0, 300, 100, 1000];
     end
 
     H = blkdiag(H_u, H_delta_clf);

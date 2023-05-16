@@ -29,6 +29,8 @@
         % Optimal Control Trajectory
         u_opt = [];
         x_opt = [];
+        x_t_hist = [];
+        u_t_hist = [];
     end
     properties(SetAccess = 'protected', GetAccess = 'protected')
         % Terminal States
@@ -79,7 +81,10 @@
             self.terminalTime = tf;
             self.terminalPosition = xf;
             self.DesSpeed = v_des;
-
+            % Create timeseries data for plotting
+            self.x_t_hist = timeseries(x_hist,t_hist,"Name",'OCP States');
+            self.u_t_hist = timeseries(u_hist,t_hist(1:end-1),...
+                "Name",'OCP Control');
         end
         
         function [posX, speed, accel] = extract_cntrl_input(self, currState, time)

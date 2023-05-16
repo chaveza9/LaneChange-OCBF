@@ -27,6 +27,8 @@ classdef VehicleDynamics < matlab.System
         w_y (1,1) double {mustBeReal, mustBeFinite} = 0.15; % y Position noise [m]
         w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2; % speed noise [m/s]
         w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.05; % heading noise [rad]
+        %Uncooperative Deceleration
+        decel (1,1) double {mustBeReal, mustBeFinite} = 0; % [m/s^2]
         
     end
     % provate properties
@@ -59,7 +61,7 @@ classdef VehicleDynamics < matlab.System
             % at dt. Uses ODE45 with the last time step
             if nargin == 1
                if self.x_k(3)>=self.VelMin+2
-                   u_k = [-2.5, 0]';
+                   u_k = [self.decel, 0]';
                else
                    u_k = [-0.0, 0]';
                end
