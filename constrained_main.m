@@ -6,7 +6,7 @@ addpath(['.',filesep,'src',filesep]);
 import casadi.*
 tic
 %% Create comments regarding the experiment
-comment = "Experiment: Nominal with noise (wx=0.5, wv=0.2) and 2 uncooperative decelerating agents with adaptive safety check and no fxtime";
+comment = "Experiment: cbf no noise (wx=0.5, wv=0.2) and 2 uncooperative decelerating agents with adaptive safety check and no fxtime";
 %% Environmental Setting
 StoreResults = 1;
 TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');

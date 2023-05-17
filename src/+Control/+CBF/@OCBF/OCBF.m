@@ -28,7 +28,9 @@ classdef OCBF < matlab.System
         % Control variables
         n_controls = 2; %[acc, omega]
         n_states = 4; %[pos, vel] [m, m/s]
+        % Method Parameters
         split = 1
+        method (1,:) char {mustBeMember(method,{'fxtm','cbf','ocbf'})} = 'fxtm'
     end
 
     methods

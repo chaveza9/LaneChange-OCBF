@@ -34,7 +34,7 @@ function [status, u] = solve_cbf_1(self, ...
         mu_i = mu(i,:)';
         [b,A] = self.noise_lims;
         % Compute constraint
-        if i==3 || true
+        if i==3 || ~contains(self.method, 'cbf')
             opti.subject_to(Lfh_s(x_p)+Lgh_s(x_p)*U + b'*mu_i ...
                  +slack_cbf(i)*h_s_i(x_p)^2>=0)
         else

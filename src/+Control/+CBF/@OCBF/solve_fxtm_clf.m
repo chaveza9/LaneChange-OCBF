@@ -18,7 +18,13 @@ function [status, u] = solve_fxtm_clf(self, ...
     else
         h_des_x = 1;
     end
-    % h_des_x = 0;
+    if contains(self.method, 'cbf') 
+        h_des_x = 0;
+    end
+    skip_v_des = 0;
+    if strcmp(self.method, 'cbf')
+        skip_v_des = 1;
+    end
     % Num constraints
     n_clf = 3+h_des_x; % Desired Speed, Desired Terminal Position
     %% Define Relaxation variables
@@ -65,9 +71,12 @@ function [status, u] = solve_fxtm_clf(self, ...
         lambda_i = lambda(i,:)';
         [b,A] = self.noise_lims;
         % Add clf constraint
-        if i<=2 %||true
+        if i ==3 && skip_v_des
+            continue
+        end
+        if i<=2 
             opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) + b'*lambda_i...
-                -slack_clf(i)<= -h_g_i(x_p));                
+                -slack_clf(i)<= -h_g_i(x_p)); 
         else
             opti.subject_to(Lgh_g(x_p)*U + Lfh_g(x_p) + b'*lambda_i<= ...
                 -slack_clf(i)*h_g_i(x_p)- alpha*max(0,h_g_i(x_p))^gamma_1 -...

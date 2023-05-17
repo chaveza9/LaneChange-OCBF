@@ -79,11 +79,19 @@ classdef VehicleDynamics < matlab.System
             self.t_k = self.t_k+self.dt;
             % Applies control input to the specified model dynamics
             % Integrate forward
-            [~,y] = ode45(@(t,x) self.dynamics(t, x, u_k),...
-                [t_k_1 ,self.t_k], self.x_k);
+            % Form control and input vector
+            if ~isempty(self.u_hist)
+                phi = self.u_hist(2,end);
+            else
+                phi = 0;
+            end
+            x_0_in = [self.x_k;phi];
+            u_in = [u_k(1),(u_k(2)-phi)/self.dt];
+            [~,y] = ode45(@(t,x) self.dynamics(t, x, u_in),...
+                [t_k_1 ,self.t_k], x_0_in);
             % Extract X(tk)
             noise_level = [self.w_x,self.w_y,self.w_v,self.w_theta]'; 
-            self.x_k = normrnd (y(end, :)', noise_level.^2);
+            self.x_k = normrnd (y(end, 1:4)', noise_level.^2);
             % Update current state and current time
             self.add_state_history(self.x_k, u_k, self.t_k)
             x_curr = self.x_k;
@@ -138,8 +146,14 @@ classdef VehicleDynamics < matlab.System
         end
         function x_dot = dynamics(self, ~, x, u)
             % compute derivatives
-            u(2) = sin(u(2));
-            x_dot = self.f(x)+self.g(x)*u;
+            v = x(3);
+            theta = x(4);
+            phi = x(5);
+            x_dot = [v*cos(theta);
+                     v*sin(theta);
+                     u(1);
+                     v*tan(phi)/self.vehWheelBase;
+                     u(2)];
         end
         function x_dot = f(~, x)
             %[x,y,v,theta,steering]
