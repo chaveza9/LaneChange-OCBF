@@ -106,11 +106,20 @@ function [status, u] = solve_fxtm_clf(self, ...
         F_slack = [0, 0, 10]*0;
     elseif h_des_x && abs(x_ego(2)-y_des)>=0.25
         H_delta_clf = diag([10,10,10,10]);
-        F_slack = [0, 0, 100, 1000];
+        % if ~self.uncooperative
+            F_slack = [50, 100, 300, 500];
+        % else
+        %     F_slack = [0, 100, 300, 200];
+        % end
     else
-        H_delta_clf = diag([10,10,10,10]);
-        F_slack = [0, 300, 100, 1000];
+        H_delta_clf = diag([10,10,10,50]);
+        % if ~self.uncooperative
+            F_slack = [0, 100, 300, 1100];
+        % else
+        %     F_slack = [0, 100, 100, 100];
+        % end
     end
+
 
     H = blkdiag(H_u, H_delta_clf);
     
@@ -125,6 +134,7 @@ function [status, u] = solve_fxtm_clf(self, ...
     opti.solver('ipopt',struct('print_time',0,'ipopt',...
     struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',1,...
     'acceptable_obj_change_tol',1e-6))); % set numerical backend
+    
     try
         solution = opti.solve_limited();
     catch err

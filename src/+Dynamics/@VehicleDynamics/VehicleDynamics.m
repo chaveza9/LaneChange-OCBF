@@ -60,7 +60,7 @@ classdef VehicleDynamics < matlab.System
             % Computes the step of a model using the predefined kinematic model
             % at dt. Uses ODE45 with the last time step
             if nargin == 1
-               if self.x_k(3)>=self.VelMin+2
+               if self.x_k(3)>=self.VelMin+5
                    u_k = [self.decel, 0]';
                else
                    u_k = [-0.0, 0]';
@@ -90,8 +90,10 @@ classdef VehicleDynamics < matlab.System
             [~,y] = ode45(@(t,x) self.dynamics(t, x, u_in),...
                 [t_k_1 ,self.t_k], x_0_in);
             % Extract X(tk)
-            noise_level = [self.w_x,self.w_y,self.w_v,self.w_theta]'; 
-            self.x_k = normrnd (y(end, 1:4)', noise_level.^2);
+            upperBound = [self.w_x,self.w_y,self.w_v,self.w_theta]'; 
+            lowerBound = -upperBound;
+            noise = lowerBound + (upperBound - lowerBound) .* rand(4,1);
+            self.x_k = y(end, 1:4)' + noise;
             % Update current state and current time
             self.add_state_history(self.x_k, u_k, self.t_k)
             x_curr = self.x_k;

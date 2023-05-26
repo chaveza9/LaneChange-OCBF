@@ -11,7 +11,7 @@ classdef OCBF < matlab.System
         thetaMax (1,1) double {mustBeReal, mustBeFinite} = 0.1745;     % Vehicle i max steering
         velMin (1,1) double {mustBeReal, mustBeFinite} = 13;    % Road min velocity
         velMax (1,1) double {mustBeReal, mustBeFinite} = 33 ;   % Road max velocity 
-        % Safety Parameters
+        % Safety Parametersd
         tau = 1.2;
         delta_dist = 10;
         % Simulation Time
@@ -28,8 +28,9 @@ classdef OCBF < matlab.System
         % Control variables
         n_controls = 2; %[acc, omega]
         n_states = 4; %[pos, vel] [m, m/s]
+        uncooperative = 0;
         % Method Parameters
-        split = 1
+        split = 0
         method (1,:) char {mustBeMember(method,{'fxtm','cbf','ocbf'})} = 'fxtm'
     end
 
@@ -62,7 +63,7 @@ classdef OCBF < matlab.System
                 flag = false;
             end
             status= false;
-            if self.split
+            if self.split %|| self.uncooperative
                 % Compute CLF
                 [~, u_ref_clf] = self.solve_fxtm_clf(...
                     x_ego_k, x_front_k, u_ref, t_f, v_des, x_des, y_des, flag);
@@ -94,7 +95,8 @@ classdef OCBF < matlab.System
             end
             % Check if solution is valid
             if ~status
-                error('Solution is Unfeasible')
+                warning('Solution is Unfeasible')
+                u = [-7,0];
             end
         end
         

@@ -66,7 +66,7 @@ function [status, u] = solve_cbf_2(self, ...
     gamma_omega = 1/max((self.omegaMax)^2,(self.omegaMin)^2);
     H_u = diag([gamma_u, gamma_omega]);
     % H_delta_cbf = diag([10,10,10,10,10,10]);
-    H_delta_cbf = diag([10,10,10,10]);
+    H_delta_cbf = diag([10,10,10,10])*5;
     H = blkdiag(H_u, H_delta_cbf);
     % Linear Cost
     F = [zeros(1, self.n_controls), zeros(1,n_cbf)];

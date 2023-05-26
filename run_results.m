@@ -1,11 +1,13 @@
-function [cav_set,cav_c, cav_env]= run_results(fid, options)
+function [cav_env,tf,i_m]= run_results(fid, plots, options)
 arguments
-    fid = 0;
+    fid = 1;
+    plots = 1;
     options.method (1,:) char {mustBeMember(options.method,{'fxtm','cbf','ocbf'})} = 'fxtm'
     options.noise logical = 0
     options.num_uncooperative (1,:) double {mustBeNumeric, mustBeNonnegative} = 1;
     options.adaptive_safety logical = 1; 
     options.store_restuls logical = 1;
+    options.added_time = 3.5;
 end
 tic
 close all
@@ -14,18 +16,21 @@ StoreResults = options.store_restuls;
 TOD = datetime('now','TimeZone','local','Format','MM-dd-yyyy_HH-mm');
 TOD = string(TOD);
 % Simulation setting
-StopTime = 14;
+StopTime = 16;
 dt = 0.05;
 % CAV set
 num_vehicles = 5; % number of vehicles in fast lane
 % v_des_range = [25,30];
 % min_pos = 0;
 % Maneuver constraints
-v_des = 34; %m/s
+v_des = 29; %m/s
 reactionTime = 0.8;
 minSafeDistance = 7;
 if options.num_uncooperative>0
     uncooperative_decel = -2.5;
+else
+    uncooperative_decel = 0;
+    options.adaptive_safety = 0;
 end
 % Vehicle dimensions
 params.actors.carLen   = 4.7; % [m]
@@ -72,13 +77,15 @@ states_cav(4).Velocity = 24;
 states_cav(5).Position(1) = 0;
 states_cav(5).Velocity = 24;
 %% Create Scenario and initialize vehicles
+uncooperative = options.num_uncooperative>0;
 % Create a driving scenario
 scenario = Env.ds4vehicleScenario(params);
 % Create CAV C
 cav_c = IntelligentVehicle('c', scenario, states_c, StopTime, ...
     constraints, 'SafetyDistance',minSafeDistance, 'SampleTime', dt, ...
     'ReactionTime',reactionTime, 'Noise', options.noise, ...
-    'Method', options.method, 'AdaptiveSafety', options.adaptive_safety); 
+    'Method', options.method, 'AdaptiveSafety', options.adaptive_safety,...
+    'Uncooperative',uncooperative); 
 % Create Vehicle U
 veh_u = IntelligentVehicle('u', scenario, states_u, StopTime,  ...
     constraints, 'SafetyDistance',minSafeDistance, 'SampleTime', dt, ...
@@ -88,6 +95,7 @@ veh_u = IntelligentVehicle('u', scenario, states_u, StopTime,  ...
 % Create CAV Set
 cav_set = repelem(cav_c, num_vehicles, 1);
 starting_index = 1;
+
 if options.num_uncooperative>1
     cav_set(1) =  IntelligentVehicle('FU', scenario, states_cav(1), ...
         StopTime,  constraints, 'SafetyDistance',minSafeDistance,...
@@ -102,7 +110,7 @@ for i=starting_index:num_vehicles
         StopTime,  constraints, 'SafetyDistance',minSafeDistance,...
         'SampleTime', dt, 'ReactionTime',reactionTime,...
         'Noise', options.noise, 'Method', options.method,...
-        'AdaptiveSafety', options.adaptive_safety);   
+        'AdaptiveSafety', options.adaptive_safety, 'Uncooperative',uncooperative);   
 end
 fprintf("Has Created Scenarios and Vehicles, elapsed time: %f \n", toc)
 % Extended cav_set 
@@ -112,7 +120,7 @@ Env.createVisualizationPlot(scenario,params,num2str(num_vehicles));
 %% Compute terminal conditions
 fprintf("Solving Terminal Conditions ...\n")
 tic
-[tf, x_e_f, ~, x_f, v_f, ~, i_m] = ...
+[tf, x_e_f, v_e_f, x_f, v_f, ~, i_m] = ...
 Collab.define_terminal_conditions (states_c, states_cav, states_u, ...
     constraints, v_des, reactionTime, minSafeDistance);
 fprintf("Has solved terminal conditions, elapsed time: %f \n", toc)
@@ -136,7 +144,7 @@ for i=starting_index:num_vehicles
             'f_collab_id',veh_1_id, 'e_collab_id',veh_c_id);
     end
     if ~hasDefinedRoll
-        warning('solution not found, for cav %s', cav_set(i).VehicleID)
+        error('solution not found, for cav %s', cav_set(i).VehicleID)
     end
 end
 fprintf("Has solved computed ocp, elapsed time: %f \n", toc)
@@ -145,7 +153,8 @@ fprintf("Stepping though...\n")
 compute_time = [];
 frameCount = 1;
 StopTime = tf;
-for t = 0:dt:StopTime %+ 3.5        
+disp(StopTime)
+for t = 0:dt:StopTime + options.added_time       
     % Compute CBF
     tic
     for i=1:num_vehicles+2
@@ -164,32 +173,42 @@ for t = 0:dt:StopTime %+ 3.5
         Frames(frameCount) = getframe(gcf); %#ok<AGROW,SAGROW,UNRCH>
         frameCount = frameCount+1;
     end
+    if t>=cav_c.LaneChangeTime_end+0.5
+        break
+    end
 end
 fprintf("Has Finished simulation, average step compute time: %f \n", mean(compute_time))
 % Store Files
 if StoreResults
-    Utils.store_results(TOD,frameCount,StopTime, Frames, cav_env,...
-    tf, i_m, comment); 
+    Utils.store_results(TOD,frameCount,t, Frames, cav_env,...
+    tf, i_m, '', plots); 
 else
     % Create history plots
     Utils.plot_state_history(cav_env, tf, i_m, [])
 end
 % Compute Statistics
-metric = compute_stats(cav_set, cav_c);
+[metric,t0l] = compute_stats(cav_set, cav_c, v_des);
 % Create report 
-fprintf(fid, strcat('%s \t %s \t %d \t %d \t %d \t %.2f \t %.2f \t ',...
-                    '%.2f \t %.2f \t %.2f \t %.2f \t %.2f \t %.2f \t ',...
-                    '%.2f \t %.2f \n'),...
+if options.store_restuls
+    fprintf(fid, strcat('%s \t %s \t %d \t %d \t %d \t %.4f \t %.4f \t ',...
+                    '%.4f \t %.4f \t %.4f \t %.4f \t %.4f \t %.4f \t ',...
+                    '%.4f \t %.4f \t %.4f \n'),...
              TOD, options.method, options.num_uncooperative, ...
              options.adaptive_safety, options.noise, ...
              mean(metric.dx.ideal), mean(metric.dx.actual),...
              mean(metric.dv.ideal), mean(metric.dv.actual),...
              mean(metric.TotalDis.ideal), mean(metric.TotalDis.actual),...
              mean(metric.Energy.ideal), mean(metric.Energy.actual),...
-             mean(metric.Acc_Diff.mean), mean(metric.Acc_Diff.std));
+             mean(metric.Acc_Diff.mean), mean(metric.Acc_Diff.std), t0l);
+    location = strcat('.',filesep,'Results',filesep,TOD); 
+    filename = strcat(location,filesep,'test_variables');
+    save(strcat(filename,'.mat'), "metric","tf","i_m","x_e_f",...
+        "v_e_f", "x_f", "v_f",'-mat')
+
+end
 end
 
-function metric = compute_stats(cav_set, cav_c)
+function [metric, t0_lc] = compute_stats(cav_set, cav_c, v_d)
     % Extract longitudinal maneuver portion
     t0_lc = cav_c.LaneChangeTime_start;
     % Create placeholders
@@ -217,7 +236,7 @@ function metric = compute_stats(cav_set, cav_c)
          metric.TotalDis.ideal(i), metric.TotalDis.actual(i), ...
          metric.Acc_Diff.mean(i), metric.Acc_Diff.std(i),...
          metric.Energy.ideal(i), metric.Energy.actual(i)] = ...
-                cav_set(i).compute_performance_metrics(t0_lc);
+                cav_set(i).compute_performance_metrics(t0_lc, v_d);
     end
     
 end

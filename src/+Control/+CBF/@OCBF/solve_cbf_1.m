@@ -2,7 +2,7 @@
 function [status, u] = solve_cbf_1(self, ...
             x_ego, x_front, u_ref)
 
-    opti = casadi.Opti(); % Optimization problem
+    opti = casadi.Opti('conic'); % Optimization problem
     %% Setup optimization variables
     % Optimization Variables
     u_var = opti.variable(self.n_controls,1); % control variables [u_ego, u_obst]
@@ -70,11 +70,14 @@ function [status, u] = solve_cbf_1(self, ...
     objective = 0.5*z_var'*H*z_var+F*z_var;
     opti.minimize(objective)
     % ----------  Create solver and solve! ---------- 
-    opts = self.define_solver_options;
+    % opts = self.define_solver_options;
     % opti.solver('sqpmethod',opts)
-    opti.solver('ipopt',struct('print_time',0,'ipopt',...
-    struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',1,...
-    'acceptable_obj_change_tol',1e-6))); % set numerical backend
+    % opts = self.define_solver_options;
+    % opti.solver('sqpmethod',opts)
+    % opti.solver('ipopt',struct('print_time',0,'ipopt',...
+    % struct('max_iter',10000,'acceptable_tol',1e-8,'print_level',1,...
+    % 'acceptable_obj_change_tol',1e-6))); % set numerical backend
+    opti.solver('osqp')
     try
         solution = opti.solve_limited();
     catch err

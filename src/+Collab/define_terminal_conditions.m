@@ -27,8 +27,8 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         v_max = constraints.v_max;   % Vehicle i max velocity [m/s]
         v_min = constraints.v_min;   % Vehicle i min velocity [m/s]
 
-        T_max = 15;     % maximum allowable time
-        t_avg = 8;      % Average time
+        T_max = 20;     % maximum allowable time
+        t_avg = 10;      % Average time
         % Tunning Constants
         gamma_t = 1/T_max;
         gamma = 0.5;
@@ -57,15 +57,15 @@ function [tf, x_e_f, v_e_f, x_f, v_f, B, i_m] = define_terminal_conditions ...
         [gamma_x, gamma_v] = compute_disruption_norm_cons(...
             gamma, v_max, v_min, v_C_0, v_d, t_avg);
         cost = cost + compute_disruption(gamma_x, gamma_v,...
-            x_C_0, v_C_0, x_ego_var, v_ego_var, tf_var);
+            x_C_0, v_C_0, x_ego_var, v_ego_var, v_d,tf_var);
         % CAVs
         for k=1:numCandidates
             [gamma_x, gamma_v] = compute_disruption_norm_cons(...
                 gamma, v_max, v_min, v_0(k,1), v_d, t_avg);
             cost = cost + compute_disruption(gamma_x, gamma_v,...
-                x_0(k,1), v_0(k,1), x_var(k,1), v_var(k,1), tf_var);
+                x_0(k,1), v_0(k,1), x_var(k,1), v_var(k,1), v_d,tf_var);
         end
-        cost = gamma_t*tf_var + cost/numCandidates;
+        cost = gamma_t*tf_var + cost/(numCandidates+1);
         opti.minimize(cost);
         
         %% Define Safety Conditions
@@ -135,9 +135,9 @@ function [gamma_x, gamma_v] = compute_disruption_norm_cons...
     gamma_v = (1-gamma)/max(v_max-v_d, v_min-v_d)^2;
 end
 function disruption = compute_disruption...
-    (gamma_x, gamma_v, x_0, v_0, x_i, v_i, t)
+    (gamma_x, gamma_v, x_0, v_0, x_i, v_i, vd,t)
     dis_x = (x_i-(x_0+v_0*t))^2;
-    dis_v = (v_i-v_0)^2;
+    dis_v = (v_i-vd)^2;
     disruption = gamma_x*dis_x + gamma_v*dis_v;
 end
 

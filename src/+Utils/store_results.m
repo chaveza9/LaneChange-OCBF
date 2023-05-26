@@ -1,5 +1,5 @@
 function status = store_results(TOD,frameCount,StopTime, Frames, cav_env,...
-    tf, i_m, comment)
+    tf, i_m, comment, ~)
 % store_results store results from lane changing maneuvers while creating
 % plots
 
@@ -16,7 +16,11 @@ function status = store_results(TOD,frameCount,StopTime, Frames, cav_env,...
     % Store variables
     save(strcat(filename,'.mat'), "cav_env","tf","i_m",'-mat')
     % Create plots and save them
-    Utils.plot_state_history(cav_env, tf, i_m, location)
+    try
+       Utils.plot_state_history(cav_env, tf, i_m, location)       
+    catch err
+        warning(err.message)
+    end
     % Provide a readme file containing experiments details
     fid = fopen(strcat(location,filesep,'README.txt'), 'w');
     % Write the time of day to the file

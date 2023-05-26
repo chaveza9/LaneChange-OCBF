@@ -21,9 +21,9 @@ classdef IntelligentVehicle < handle
         VelMin
 
         %Noise Levels 
-        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.3; % x Position noise [m]
+        w_x (1,1) double {mustBeReal, mustBeFinite} = 0.5; % x Position noise [m]
         w_y (1,1) double {mustBeReal, mustBeFinite} = 0.0; % y Position noise [m]
-        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.2; % speed noise [m/s]
+        w_v (1,1) double {mustBeReal, mustBeFinite} = 0.9; % speed noise [m/s]
         w_theta (1,1) double {mustBeReal, mustBeFinite} = 0.00; % heading noise [rad]
 
         % Rear Safety Distance
@@ -63,7 +63,12 @@ classdef IntelligentVehicle < handle
         LaneChangeTime_start = NaN;
         LaneChangeTime_end = NaN;
         % Difference between control inputs
+        u_ref_hist = [];
+        x_ref_hist = [];
+        v_ref_hist = [];
         u_diff_hist = [];
+        x_diff_hist = [];
+        v_diff_hist = [];
        
     end
 
@@ -99,6 +104,7 @@ classdef IntelligentVehicle < handle
                 InitialConditions struct
                 StopTime double {mustBeNonnegative, mustBeNumeric}
                 constraints
+                Options.Uncooperative = 0;
                 Options.UDecel double {mustBeNumeric} = 0.00;
                 Options.Noise logical {mustBeNumericOrLogical} =  false;
                 Options.Method (1,:) char {mustBeMember(Options.Method,{'cbf','ocbf','fxtm'})} = 'fxtm'
@@ -190,7 +196,8 @@ classdef IntelligentVehicle < handle
                 'w_v', self.w_v*Options.Noise,...
                 'w_theta', self.w_theta*Options.Noise,...
                 'dt', self.SampleTime, ...
-                'method', Options.Method);
+                'method', Options.Method, ...
+                'uncooperative', Options.Uncooperative);
         end %constructor
 
         
@@ -307,11 +314,10 @@ classdef IntelligentVehicle < handle
                 x_k_lead = [posU, velU]';
             end
             % Compute u_reference function based on current state
-            [~, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
+            [x_ref, v_ref, u_ref] = self.ocp_prob.extract_cntrl_input(...
                 x_k_ego, self.CurrentTime);
             % Compute remaining time from terminal time
             t_des = max(abs(self.t_f - (self.CurrentTime - self.t_0)), 0.01);
-            % t_des = self.t_f;
             x_des = self.x_f;
             y_des = self.DesYPos;
             % u_ref=  0;
@@ -383,10 +389,9 @@ classdef IntelligentVehicle < handle
                     error('case not defined')
             end
             if ~status
-                error('solution could not be found')
+                warning('solution could not be found')
+                u_k = [self.AccelMin,0]';
             end
-            % -------------- Store Difference between control ----------
-            self.u_diff_hist = cat(1,self.u_diff_hist, u_ref-u_k(1));
             % -------------- Apply control input ------------------------
             % Apply constant control input
             x_k = self.Dynamics.integrate_forward(u_k);
@@ -396,9 +401,18 @@ classdef IntelligentVehicle < handle
             isRunning = status;
             % Update Time Step
             self.CurrentTime = self.CurrentTime + self.SampleTime;
+            % ------------ Store Difference between control and ref -------
+            % Ref control
+            self.u_ref_hist = cat(1,self.u_ref_hist, u_ref);
+            self.u_diff_hist = cat(1,self.u_diff_hist, u_ref-u_k(1));
+            % Ref states
+            self.x_ref_hist = cat(1,self.x_ref_hist, x_ref);
+            self.x_diff_hist = cat(1,self.x_diff_hist, x_ref-x_k(1));
+            self.v_ref_hist = cat(1,self.v_ref_hist, v_ref);
+            self.v_diff_hist = cat(1,self.v_diff_hist, v_ref-x_k(3));
             % ----------Check if maneuver has finished -----------------
             if strcmp(self.RollType,'cavC') && self.StartLatManeuver ...
-                    && (self.CurrentState.Position(2)-self.DesYPos)^2<=0.05 ...
+                    && (self.CurrentState.Position(2)-self.DesYPos)^2<=0.06 ...
                     && isnan(self.LaneChangeTime_end)
                 self.LaneChangeTime_end = self.CurrentTime;
             end
@@ -480,7 +494,10 @@ classdef IntelligentVehicle < handle
             % Returns the timeseries datatype of state history
             arguments
                 self
-                type (1,:) char {mustBeMember(type,{'x','y','v','theta','accel','steering','safety','ocp_difference'})}
+                type (1,:) char ...
+                    {mustBeMember(type,{'x','y','v','theta','accel',...
+                    'steering','safety','ocp_difference','u_ref'...
+                    'x_ref_diff','x_ref','v_ref_diff','v_ref'})}
                 upperTimeLimit = 0;
             end
             
@@ -526,7 +543,26 @@ classdef IntelligentVehicle < handle
                     time = self.Dynamics.t_hist(1:end-1);
                     vec = self.u_diff_hist;
                     units = 'm/s^2';
-
+                case 'u_ref'
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.u_ref_hist;
+                    units = 'm/s^2';
+                case 'x_ref_diff'
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.x_diff_hist;
+                    units = 'm';
+                case 'x_ref'
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.x_ref_hist;
+                    units = 'm';
+                case 'v_ref_diff'
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.v_diff_hist;
+                    units = 'm/s';
+                case 'v_ref'
+                    time = self.Dynamics.t_hist(1:end-1);
+                    vec = self.v_ref_hist;
+                    units = 'm/s';
             end
             % Construct timeseries data
             state_hist = timeseries(vec,time,"Name",type);
@@ -540,7 +576,7 @@ classdef IntelligentVehicle < handle
         function [dx_ideal, dv_ideal, dx_actual, dv_actual,...
                 total_ideal, total_actual, avg_diff, std_diff,...
                 ideal_total_energy, actual_total_energy] = ...
-                compute_performance_metrics(self,time)
+                compute_performance_metrics(self,time, v_d)
             % Computes disruption based on initial conditions and current
             % time
             % -------------------------------------------------------------
@@ -551,30 +587,28 @@ classdef IntelligentVehicle < handle
             acc = self.get_state_history("accel",time);
             acc_diff =  self.get_state_history("ocp_difference",time);
             % ideal
-            ideal_x = self.ocp_prob.x_t_hist.getsampleusingtime(0, time); %2,1,n%
             ideal_u = self.ocp_prob.u_t_hist.getsampleusingtime(0, time); %2,1,n%
             % Compute average difference
             std_diff = std(acc_diff);
             avg_diff = mean(acc_diff);
             % Compute ideal disruption 
             [gamma_x, gamma_v] = self.compute_disruption_norm_cons...
-                    (0.5, self.VelMax, self.VelMin, ideal_x.Data(2,1,1),...
-                    self.DesSpeed, time);
+                    (0.5, self.VelMax, self.VelMin, self.x_0(1), ...
+                    self.x_0(2), self.t_f);
             [dx_ideal, dv_ideal, total_ideal] = self.compute_disruption(...
-                gamma_x, gamma_v, ...
-                ideal_x.Data(1,1,1), ideal_x.Data(2,1,1), ...
-                ideal_x.Data(1,1,end), ideal_x.Data(2,1,end), time);
-            ideal_u.Data = 0.5*ideal_u.Data.^2; 
+                1, 1, self.x_0(1), self.x_0(2), self.x_f,...
+                self.DesSpeed, v_d, self.t_f);
+            ideal_u.Data = 0.5*ideal_u.Data.^2*(self.t_f/self.ocp_prob.N); 
             ideal_total_energy = sum(ideal_u);
             % Compute actual disruption 
             [gamma_x, gamma_v] = self.compute_disruption_norm_cons...
                     (0.5, self.VelMax, self.VelMin, speed.Data(1),...
                     self.DesSpeed, time);
             [dx_actual, dv_actual, total_actual] = self.compute_disruption(...
-                gamma_x, gamma_v, ...
+                1, 1, ...
                 pos.Data(1), speed.Data(1), ...
-                pos.Data(end), speed.Data(end), time);
-            acc.Data = 0.5*acc.Data.^2; 
+                pos.Data(end), speed.Data(end), v_d,time);
+            acc.Data = 0.5*acc.Data.^2*self.SampleTime; 
             actual_total_energy = sum(acc);
         end
     end %public Methods
@@ -680,9 +714,9 @@ classdef IntelligentVehicle < handle
             gamma_v = (1-gamma)/max(v_max-v_d, v_min-v_d)^2;
         end
         function [dis_x, dis_v, disruption] = compute_disruption...
-            (gamma_x, gamma_v, x_0, v_0, x_i, v_i, t)
+            (gamma_x, gamma_v, x_0, v_0, x_i, v_i, v_d,t)
             dis_x = gamma_x*(x_i-(x_0+v_0*t))^2;
-            dis_v = gamma_v*(v_i-v_0)^2;
+            dis_v = gamma_v*(v_i-v_d)^2;
             disruption = dis_x + dis_v;
         end
         function state = decompose_state(states)
