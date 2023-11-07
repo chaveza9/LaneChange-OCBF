@@ -1,5 +1,7 @@
 # Maximizing Safety and Efficiency for Cooperative Lane-Changing: A Minimally Disruptive Approach
 
+[<img src="https://img.shields.io/badge/arxiv-%23B31B1B.svg?&style=for-the-badge&logo=arxiv&logoColor=white" />](https://arxiv.org/abs/2305.17883)
+
 ## Overview
 
 This repository contains code to accompany the paper "Maximizing Safety and Efficiency for Cooperative Lane-Changing: A Minimally Disruptive Approach" by Armijos, Li, and Cassandras. 
