@@ -44,5 +44,3 @@ This paper addresses cooperative lane-changing maneuvers in mixed traffic, aimin
 ## License
 
 This repository is licensed under the MIT license. See [LICENSE](LICENSE) for details.
-
-Let me know if you would like me to modify or add anything to this README!
