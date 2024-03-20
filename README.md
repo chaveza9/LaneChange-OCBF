@@ -27,7 +27,11 @@ The `main.m` script will run the simulations and generate the results.
 
 This paper addresses cooperative lane-changing maneuvers in mixed traffic, aiming to minimize traffic flow disruptions while accounting for uncooperative vehicles. The proposed approach adopts controllers combining Optimal control with Control Barrier Functions (OCBF controllers) which guarantee spatio-temporal constraints through the use of fixed-time convergence. Additionally, we introduce robustness to disturbances by deriving a method for handling worst-case disturbances using the dual of a linear programming problem. We present a near-optimal solution that ensures safety, optimality, and robustness to changing behavior of uncooperative vehicles. Simulations demonstrate the effectiveness of the proposed approach in enhancing efficiency and safety.
 
-## Reference
+
+## Citing this work
+
+
+```bibtex
 @INPROCEEDINGS{10422143,
   author={Chavez Armijos, Andres S. and Li, Anni and Cassandras, Christos G.},
   booktitle={2023 IEEE 26th International Conference on Intelligent Transportation Systems (ITSC)}, 
@@ -38,6 +42,9 @@ This paper addresses cooperative lane-changing maneuvers in mixed traffic, aimin
   pages={4272-4277},
   keywords={Optimal control;Linear programming;Robustness;Safety;Behavioral sciences;Intelligent transportation systems;Convergence},
   doi={10.1109/ITSC57777.2023.10422143}}
+}
+```
+
 
 
 
