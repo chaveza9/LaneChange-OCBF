@@ -2,7 +2,8 @@
 
 [<img src="https://img.shields.io/badge/arxiv-%23B31B1B.svg?&style=for-the-badge&logo=arxiv&logoColor=white" />](https://arxiv.org/abs/2305.17883)
 
-[ITSC2023](https://ieeexplore.ieee.org/document/10422143)
+[<img src="https://www.vectorlogo.zone/logos/ieee/ieee-ar21.svg">](https://ieeexplore.ieee.org/document/10422143)
+
 
 ## Overview
 
